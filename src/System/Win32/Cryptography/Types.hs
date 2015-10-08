@@ -6,6 +6,7 @@ module System.Win32.Cryptography.Types
   , pattern X509_ASN_ENCODING
   , pattern PKCS_7_ASN_ENCODING
     -- * Other types
+  , HCERTSTORE
   , ALG_ID
   , pattern CALG_MD2
   , pattern CALG_MD4
