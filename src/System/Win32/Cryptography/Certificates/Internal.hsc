@@ -1,18 +1,17 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving, PatternSynonyms #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving, PatternSynonyms #-}
 module System.Win32.Cryptography.Certificates.Internal where
 
 import Data.Bits
 import Foreign
 import Foreign.C.Types
 import System.Win32.Cryptography.Helpers
+import System.Win32.Cryptography.Types.Internal
 import System.Win32.Time
 import System.Win32.Types
 import Text.Printf
 
 #include <windows.h>
 #include <Wincrypt.h>
-
-type HCERTSTORE = HANDLE
 
 newtype EncodingType = EncodingType { unEncodingType :: DWORD }
   deriving (Eq, Bits, Storable)
@@ -228,3 +227,23 @@ instance Storable CERT_EXTENSION where
     <*> #{peek CERT_EXTENSION, Value} p
 
 type PCERT_EXTENSION = Ptr CERT_EXTENSION
+
+-- PCCERT_CONTEXT WINAPI CertCreateCertificateContext(
+--   _In_       DWORD dwCertEncodingType,
+--   _In_ const BYTE  *pbCertEncoded,
+--   _In_       DWORD cbCertEncoded
+-- );
+foreign import WINDOWS_CCONV "windows.h CertCreateCertificateContext"
+  c_CertCreateCertificateContext
+    :: EncodingType -- dwCertEncodingType
+    -> Ptr CChar -- pbCertEncoded
+    -> DWORD -- cbCertEncoded
+    -> IO PCERT_CONTEXT
+
+-- BOOL WINAPI CertFreeCertificateContext(
+--   _In_ PCCERT_CONTEXT pCertContext
+-- );
+foreign import WINDOWS_CCONV "windows.h CertFreeCertificateContext"
+  c_CertFreeCertificateContext
+    :: PCERT_CONTEXT
+    -> IO BOOL
