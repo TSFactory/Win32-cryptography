@@ -434,3 +434,38 @@ foreign import WINDOWS_CCONV "windows.h CertGetCertificateContextProperty"
     -> Ptr () -- pvData
     -> Ptr DWORD -- pcbData
     -> IO BOOL
+
+newtype CertKeySpec = CertKeySpec { unCertKeySpec :: DWORD }
+  deriving (Eq, Storable)
+
+pattern AT_KEYEXCHANGE = CertKeySpec #{const AT_KEYEXCHANGE}
+pattern AT_SIGNATURE = CertKeySpec #{const AT_SIGNATURE}
+pattern CERT_NCRYPT_KEY_SPEC = CertKeySpec #{const CERT_NCRYPT_KEY_SPEC}
+
+certKeySpecNames :: [(CertKeySpec, String)]
+certKeySpecNames =
+  [ (AT_KEYEXCHANGE, "AT_KEYEXCHANGE")
+  , (AT_SIGNATURE, "AT_SIGNATURE")
+  , (CERT_NCRYPT_KEY_SPEC, "CERT_NCRYPT_KEY_SPEC")
+  ]
+
+instance Show CertKeySpec where
+  show x = printf "CertKeySpec { %s }" (pickName certKeySpecNames unCertKeySpec x)
+
+data CERT_KEY_CONTEXT = CERT_KEY_CONTEXT
+  { certKeyCbSize         :: DWORD
+  , certKeyCryptProvOrKey :: HANDLE
+  , certKeyDwKeySpec      :: CertKeySpec
+  } deriving (Show)
+
+instance Storable CERT_KEY_CONTEXT where
+  sizeOf _ = #{size CERT_KEY_CONTEXT}
+  alignment _ = alignment (undefined :: CInt)
+  poke p x = do
+    #{poke CERT_KEY_CONTEXT, cbSize} p $ certKeyCbSize x
+    #{poke CERT_KEY_CONTEXT, hCryptProv} p $ certKeyCryptProvOrKey x
+    #{poke CERT_KEY_CONTEXT, dwKeySpec} p $ certKeyDwKeySpec x
+  peek p = CERT_KEY_CONTEXT
+    <$> #{peek CERT_KEY_CONTEXT, cbSize} p
+    <*> #{peek CERT_KEY_CONTEXT, hCryptProv} p
+    <*> #{peek CERT_KEY_CONTEXT, dwKeySpec} p
