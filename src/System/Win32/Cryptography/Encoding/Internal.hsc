@@ -58,7 +58,7 @@ instance Show CryptStringFlags where
 --   _Out_   DWORD   *pdwSkip,
 --   _Out_   DWORD   *pdwFlags
 -- );
-foreign import WINDOWS_CCONV "windows.h CryptStringToBinaryW"
+foreign import WINDOWS_CCONV "wincrypt.h CryptStringToBinaryW"
   c_CryptStringToBinary
     :: LPWSTR -- pszString
     -> DWORD -- cchString

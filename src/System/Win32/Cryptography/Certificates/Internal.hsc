@@ -233,7 +233,7 @@ type PCERT_EXTENSION = Ptr CERT_EXTENSION
 --   _In_ const BYTE  *pbCertEncoded,
 --   _In_       DWORD cbCertEncoded
 -- );
-foreign import WINDOWS_CCONV "windows.h CertCreateCertificateContext"
+foreign import WINDOWS_CCONV "wincrypt.h CertCreateCertificateContext"
   c_CertCreateCertificateContext
     :: EncodingType -- dwCertEncodingType
     -> Ptr CChar -- pbCertEncoded
@@ -243,7 +243,7 @@ foreign import WINDOWS_CCONV "windows.h CertCreateCertificateContext"
 -- BOOL WINAPI CertFreeCertificateContext(
 --   _In_ PCCERT_CONTEXT pCertContext
 -- );
-foreign import WINDOWS_CCONV "windows.h CertFreeCertificateContext"
+foreign import WINDOWS_CCONV "wincrypt.h CertFreeCertificateContext"
   c_CertFreeCertificateContext
     :: PCERT_CONTEXT
     -> IO BOOL
@@ -413,7 +413,7 @@ instance Show CertPropId where
 --   _In_       DWORD          dwFlags,
 --   _In_ const void           *pvData
 -- );
-foreign import WINDOWS_CCONV "windows.h CertSetCertificateContextProperty"
+foreign import WINDOWS_CCONV "wincrypt.h CertSetCertificateContextProperty"
   c_CertSetCertificateContextProperty
     :: PCERT_CONTEXT -- pCertContext
     -> CertPropId -- dwPropId
@@ -427,7 +427,7 @@ foreign import WINDOWS_CCONV "windows.h CertSetCertificateContextProperty"
 --   _Out_   void           *pvData,
 --   _Inout_ DWORD          *pcbData
 -- );
-foreign import WINDOWS_CCONV "windows.h CertGetCertificateContextProperty"
+foreign import WINDOWS_CCONV "wincrypt.h CertGetCertificateContextProperty"
   c_CertGetCertificateContextProperty
     :: PCERT_CONTEXT -- pCertContext
     -> CertPropId -- dwPropId
