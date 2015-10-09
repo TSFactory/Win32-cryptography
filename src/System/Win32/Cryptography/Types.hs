@@ -1,6 +1,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 module System.Win32.Cryptography.Types
-  ( -- * Reexports from 'System.Win32.Cryptography'
+  ( -- * Reexports from 'System.Win32.Cryptography.Certificates'
     PCERT_CONTEXT
   , EncodingType (..)
   , pattern X509_ASN_ENCODING

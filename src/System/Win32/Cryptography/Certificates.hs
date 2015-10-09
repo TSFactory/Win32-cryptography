@@ -17,8 +17,8 @@ import System.Win32.Error.Foreign
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as BU
 
--- | Wrapper over a CertCreateCertificateContext Windows API function. Creates a CERT_CONTEXT from a
--- given buffer and encoding type of the data in that buffer.
+-- | Wrapper over CertCreateCertificateContext Windows API function. Creates a 'PCERT_CONTEXT' from a
+-- given buffer and encoding of data in that buffer.
 certCreateCertificateContext :: EncodingType -> B.ByteString -> ResourceT IO (ReleaseKey, PCERT_CONTEXT)
 certCreateCertificateContext encType buffer = resourceMask $ \_ -> do
     certContext <- liftIO $ BU.unsafeUseAsCStringLen buffer $ \(ptr, len) ->
