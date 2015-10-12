@@ -11,6 +11,7 @@ import Text.Printf
 #include <Wincrypt.h>
 
 type HCERTSTORE = HANDLE
+type HCRYPTPROV = HANDLE
 
 newtype ALG_ID = ALG_ID { unAlgId :: CUInt }
   deriving (Eq, Storable)
@@ -110,3 +111,18 @@ algIdNames =
 
 instance Show ALG_ID where
   show x = printf "ALG_ID { %s }" (pickName algIdNames unAlgId x)
+
+newtype EncodingType = EncodingType { unEncodingType :: DWORD }
+  deriving (Eq, Bits, Storable)
+
+pattern X509_ASN_ENCODING = EncodingType #{const X509_ASN_ENCODING}
+pattern PKCS_7_ASN_ENCODING = EncodingType #{const PKCS_7_ASN_ENCODING}
+
+encodingTypeNames :: [(EncodingType, String)]
+encodingTypeNames =
+  [ (X509_ASN_ENCODING, "X509_ASN_ENCODING")
+  , (PKCS_7_ASN_ENCODING, "PKCS_7_ASN_ENCODING")
+  ]
+
+instance Show EncodingType where
+  show x = printf "EncodingType { %s }" (parseBitFlags encodingTypeNames unEncodingType x)

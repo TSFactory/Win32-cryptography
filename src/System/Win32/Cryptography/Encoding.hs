@@ -19,11 +19,15 @@ module System.Win32.Cryptography.Encoding
   , cryptStringToBinary
   ) where
 
+import Control.Exception
 import Foreign
 import System.Win32.Cryptography.Encoding.Internal
+import System.Win32.Cryptography.Types
 import System.Win32.Error.Foreign
+import System.Win32 (localFree)
 import System.Win32.Types hiding (failIfFalse_)
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Unsafe as BU
 import qualified Data.Text as T
 import qualified Data.Text.Foreign as T
 
@@ -49,3 +53,18 @@ cryptStringToBinary src flags = T.useAsPtr src $ \ptr len ->
       skip <- peek pdwSkip
       outFlags <- peek pdwFlags
       return $ CryptStringToBinaryResult output skip outFlags
+
+cryptDecodeObjectEx :: EncodingType -> CryptStructType -> B.ByteString -> CryptDecodeFlags -> IO B.ByteString
+cryptDecodeObjectEx encType structType input flags =
+  either (\x act -> act $ intPtrToPtr x) (B.useAsCString) (unCryptStructType structType) $ \lpszStructType ->
+  BU.unsafeUseAsCStringLen input $ \(pbEncoded, cbEncoded) ->
+  alloca $ \pvStructInfo ->
+  alloca $ \pcbStructInfo -> do
+    let flags' = flags .|. CRYPT_DECODE_ALLOC_FLAG
+    mask_ $ do
+      failIfFalse_ "CryptDecodeObjectEx" $ c_CryptDecodeObjectEx encType lpszStructType pbEncoded (fromIntegral cbEncoded) flags' nullPtr (castPtr pvStructInfo) pcbStructInfo
+      outputBuf <- peek pvStructInfo
+      outputLen <- peek pcbStructInfo
+      output <- B.packCStringLen (outputBuf, fromIntegral outputLen)
+      localFree pvStructInfo
+      return output

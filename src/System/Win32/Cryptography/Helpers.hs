@@ -2,12 +2,18 @@ module System.Win32.Cryptography.Helpers
   ( parseBitFlags
   , pickName
   , parseEnumWithFlags
+  , useAsPtr0
   ) where
 
 import Data.Bits
+import Data.Char
 import Data.List
 import Data.Maybe
+import Foreign
+import Foreign.C.Types
 import Text.Printf
+import qualified Data.Text as T
+import qualified Data.Text.Foreign as T
 
 -- Following functions are just copy-pasted from Win32-security package. Maybe if their amount would be big enough,
 -- it might be worth creating a dedicated package for them. For now it seems just a huge overkill for me.
@@ -41,3 +47,8 @@ parseEnumWithFlags names flags extractInt x =
       flagPart = x .&. flagMask
       enumPart = x .&. complement flagMask
   in  intercalate " | " $ filter (not . null) [ parseBitFlags names extractInt flagPart, pickName names extractInt enumPart ]
+
+-- | useAsPtr returns a length and byte buffer, but all the win32 functions
+-- rely on null termination.
+useAsPtr0 :: T.Text -> (Ptr CWchar -> IO a) -> IO a
+useAsPtr0 t f = T.useAsPtr (T.snoc t (chr 0x0)) $ \ str _ -> f  (castPtr str)

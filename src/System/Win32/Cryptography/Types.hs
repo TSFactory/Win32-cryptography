@@ -2,11 +2,12 @@
 module System.Win32.Cryptography.Types
   ( -- * Reexports from 'System.Win32.Cryptography.Certificates'
     PCERT_CONTEXT
+    -- * Other types
   , EncodingType (..)
   , pattern X509_ASN_ENCODING
   , pattern PKCS_7_ASN_ENCODING
-    -- * Other types
   , HCERTSTORE
+  , HCRYPTPROV
   , ALG_ID
   , pattern CALG_MD2
   , pattern CALG_MD4

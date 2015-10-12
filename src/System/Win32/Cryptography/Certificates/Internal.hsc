@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving, PatternSynonyms #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface, GeneralizedNewtypeDeriving, OverloadedStrings, PatternSynonyms #-}
 module System.Win32.Cryptography.Certificates.Internal where
 
 import Data.Bits
@@ -9,24 +9,10 @@ import System.Win32.Cryptography.Types.Internal
 import System.Win32.Time
 import System.Win32.Types
 import Text.Printf
+import qualified Data.Text as T
 
 #include <windows.h>
 #include <Wincrypt.h>
-
-newtype EncodingType = EncodingType { unEncodingType :: DWORD }
-  deriving (Eq, Bits, Storable)
-
-pattern X509_ASN_ENCODING = EncodingType #{const X509_ASN_ENCODING}
-pattern PKCS_7_ASN_ENCODING = EncodingType #{const PKCS_7_ASN_ENCODING}
-
-encodingTypeNames :: [(EncodingType, String)]
-encodingTypeNames =
-  [ (X509_ASN_ENCODING, "X509_ASN_ENCODING")
-  , (PKCS_7_ASN_ENCODING, "PKCS_7_ASN_ENCODING")
-  ]
-
-instance Show EncodingType where
-  show x = printf "EncodingType { %s }" (parseBitFlags encodingTypeNames unEncodingType x)
 
 data CERT_CONTEXT = CERT_CONTEXT
   { dwCertEncodingType :: EncodingType
@@ -469,3 +455,124 @@ instance Storable CERT_KEY_CONTEXT where
     <$> #{peek CERT_KEY_CONTEXT, cbSize} p
     <*> #{peek CERT_KEY_CONTEXT, hCryptProv} p
     <*> #{peek CERT_KEY_CONTEXT, dwKeySpec} p
+
+newtype CryptAcquireContextFlags = CryptAcquireContextFlags { unCryptAcquireContextFlags :: DWORD }
+  deriving (Eq, Bits, Storable)
+
+pattern CRYPT_VERIFYCONTEXT = CryptAcquireContextFlags #{const CRYPT_VERIFYCONTEXT}
+pattern CRYPT_NEWKEYSET = CryptAcquireContextFlags #{const CRYPT_NEWKEYSET}
+pattern CRYPT_DELETEKEYSET = CryptAcquireContextFlags #{const CRYPT_DELETEKEYSET}
+pattern CRYPT_MACHINE_KEYSET = CryptAcquireContextFlags #{const CRYPT_MACHINE_KEYSET}
+pattern CRYPT_SILENT = CryptAcquireContextFlags #{const CRYPT_SILENT}
+-- pattern CRYPT_DEFAULT_CONTAINER_OPTIONAL = CryptAcquireContextFlags #{const CRYPT_DEFAULT_CONTAINER_OPTIONAL}
+
+cryptAcquireContextNames :: [(CryptAcquireContextFlags, String)]
+cryptAcquireContextNames =
+  [ (CRYPT_VERIFYCONTEXT, "CRYPT_VERIFYCONTEXT")
+  , (CRYPT_NEWKEYSET, "CRYPT_NEWKEYSET")
+  , (CRYPT_DELETEKEYSET, "CRYPT_DELETEKEYSET")
+  , (CRYPT_MACHINE_KEYSET, "CRYPT_MACHINE_KEYSET")
+  , (CRYPT_SILENT, "CRYPT_SILENT")
+--  , (CRYPT_DEFAULT_CONTAINER_OPTIONAL, "CRYPT_DEFAULT_CONTAINER_OPTIONAL")
+  ]
+
+instance Show CryptAcquireContextFlags where
+  show x = printf "CryptAcquireContextFlags{ %s }" (parseBitFlags cryptAcquireContextNames unCryptAcquireContextFlags x)
+
+newtype CryptProvType = CryptProvType { unCryptProvType :: DWORD }
+  deriving (Eq, Storable)
+
+pattern PROV_RSA_FULL = CryptProvType #{const PROV_RSA_FULL}
+pattern PROV_RSA_SIG = CryptProvType #{const PROV_RSA_SIG}
+pattern PROV_DSS = CryptProvType #{const PROV_DSS}
+pattern PROV_FORTEZZA = CryptProvType #{const PROV_FORTEZZA}
+pattern PROV_MS_EXCHANGE = CryptProvType #{const PROV_MS_EXCHANGE}
+pattern PROV_SSL = CryptProvType #{const PROV_SSL}
+pattern PROV_RSA_SCHANNEL = CryptProvType #{const PROV_RSA_SCHANNEL}
+pattern PROV_DSS_DH = CryptProvType #{const PROV_DSS_DH}
+pattern PROV_EC_ECDSA_SIG = CryptProvType #{const PROV_EC_ECDSA_SIG}
+pattern PROV_EC_ECNRA_SIG = CryptProvType #{const PROV_EC_ECNRA_SIG}
+pattern PROV_EC_ECDSA_FULL = CryptProvType #{const PROV_EC_ECDSA_FULL}
+pattern PROV_EC_ECNRA_FULL = CryptProvType #{const PROV_EC_ECNRA_FULL}
+pattern PROV_DH_SCHANNEL = CryptProvType #{const PROV_DH_SCHANNEL}
+pattern PROV_SPYRUS_LYNKS = CryptProvType #{const PROV_SPYRUS_LYNKS}
+pattern PROV_RNG = CryptProvType #{const PROV_RNG}
+pattern PROV_INTEL_SEC = CryptProvType #{const PROV_INTEL_SEC}
+pattern PROV_REPLACE_OWF = CryptProvType #{const PROV_REPLACE_OWF}
+pattern PROV_RSA_AES = CryptProvType #{const PROV_RSA_AES}
+
+cryptProvTypeNames :: [(CryptProvType, String)]
+cryptProvTypeNames =
+  [ (PROV_RSA_FULL, "PROV_RSA_FULL")
+  , (PROV_RSA_SIG, "PROV_RSA_SIG")
+  , (PROV_DSS, "PROV_DSS")
+  , (PROV_FORTEZZA, "PROV_FORTEZZA")
+  , (PROV_MS_EXCHANGE, "PROV_MS_EXCHANGE")
+  , (PROV_SSL, "PROV_SSL")
+  , (PROV_RSA_SCHANNEL, "PROV_RSA_SCHANNEL")
+  , (PROV_DSS_DH, "PROV_DSS_DH")
+  , (PROV_EC_ECDSA_SIG, "PROV_EC_ECDSA_SIG")
+  , (PROV_EC_ECNRA_SIG, "PROV_EC_ECNRA_SIG")
+  , (PROV_EC_ECDSA_FULL, "PROV_EC_ECDSA_FULL")
+  , (PROV_EC_ECNRA_FULL, "PROV_EC_ECNRA_FULL")
+  , (PROV_DH_SCHANNEL, "PROV_DH_SCHANNEL")
+  , (PROV_SPYRUS_LYNKS, "PROV_SPYRUS_LYNKS")
+  , (PROV_RNG, "PROV_RNG")
+  , (PROV_INTEL_SEC, "PROV_INTEL_SEC")
+  , (PROV_REPLACE_OWF, "PROV_REPLACE_OWF")
+  , (PROV_RSA_AES, "PROV_RSA_AES")
+  ]
+
+instance Show CryptProvType where
+  show x = printf "CryptProvType { %s }" (pickName cryptProvTypeNames unCryptProvType x)
+
+pattern MS_DEF_PROV :: T.Text
+pattern MS_DEF_PROV = #{const_str MS_DEF_PROV}
+pattern MS_ENHANCED_PROV :: T.Text
+pattern MS_ENHANCED_PROV = #{const_str MS_ENHANCED_PROV}
+pattern MS_STRONG_PROV :: T.Text
+pattern MS_STRONG_PROV = #{const_str MS_STRONG_PROV}
+pattern MS_DEF_RSA_SIG_PROV :: T.Text
+pattern MS_DEF_RSA_SIG_PROV = #{const_str MS_DEF_RSA_SIG_PROV}
+pattern MS_DEF_RSA_SCHANNEL_PROV :: T.Text
+pattern MS_DEF_RSA_SCHANNEL_PROV = #{const_str MS_DEF_RSA_SCHANNEL_PROV}
+pattern MS_DEF_DSS_PROV :: T.Text
+pattern MS_DEF_DSS_PROV = #{const_str MS_DEF_DSS_PROV}
+pattern MS_DEF_DSS_DH_PROV :: T.Text
+pattern MS_DEF_DSS_DH_PROV = #{const_str MS_DEF_DSS_DH_PROV}
+pattern MS_ENH_DSS_DH_PROV :: T.Text
+pattern MS_ENH_DSS_DH_PROV = #{const_str MS_ENH_DSS_DH_PROV}
+pattern MS_DEF_DH_SCHANNEL_PROV :: T.Text
+pattern MS_DEF_DH_SCHANNEL_PROV = #{const_str MS_DEF_DH_SCHANNEL_PROV}
+pattern MS_SCARD_PROV :: T.Text
+pattern MS_SCARD_PROV = #{const_str MS_SCARD_PROV}
+pattern MS_ENH_RSA_AES_PROV :: T.Text
+pattern MS_ENH_RSA_AES_PROV = #{const_str MS_ENH_RSA_AES_PROV}
+pattern MS_ENH_RSA_AES_PROV_XP :: T.Text
+pattern MS_ENH_RSA_AES_PROV_XP = #{const_str MS_ENH_RSA_AES_PROV_XP}
+
+-- BOOL WINAPI CryptAcquireContext(
+--   _Out_ HCRYPTPROV *phProv,
+--   _In_  LPCTSTR    pszContainer,
+--   _In_  LPCTSTR    pszProvider,
+--   _In_  DWORD      dwProvType,
+--   _In_  DWORD      dwFlags
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CryptAcquireContextW"
+  c_CryptAcquireContext
+    :: Ptr HCRYPTPROV -- phProv
+    -> LPWSTR -- pszContainer
+    -> LPWSTR -- pszProvider
+    -> CryptProvType -- dwProvType
+    -> CryptAcquireContextFlags -- dwFlags
+    -> IO BOOL
+
+-- BOOL WINAPI CryptReleaseContext(
+--  _In_ HCRYPTPROV hProv,
+--  _In_ DWORD      dwFlags
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CryptReleaseContext"
+  c_CryptReleaseContext
+    :: HCRYPTPROV -- hProv
+    -> DWORD -- dwFlags
+    -> IO BOOL
