@@ -8,6 +8,7 @@ module System.Win32.Cryptography.Types
   , pattern PKCS_7_ASN_ENCODING
   , HCERTSTORE
   , HCRYPTPROV
+  , HCRYPTKEY
   , ALG_ID
   , pattern CALG_MD2
   , pattern CALG_MD4

@@ -576,3 +576,120 @@ foreign import WINDOWS_CCONV "wincrypt.h CryptReleaseContext"
     :: HCRYPTPROV -- hProv
     -> DWORD -- dwFlags
     -> IO BOOL
+
+newtype BlobType = BlobType { unBlobType :: CChar }
+  deriving (Eq, Storable)
+
+pattern SIMPLEBLOB = BlobType #{const SIMPLEBLOB}
+pattern PUBLICKEYBLOB = BlobType #{const PUBLICKEYBLOB}
+pattern PRIVATEKEYBLOB = BlobType #{const PRIVATEKEYBLOB}
+pattern PLAINTEXTKEYBLOB = BlobType #{const PLAINTEXTKEYBLOB}
+pattern OPAQUEKEYBLOB = BlobType #{const OPAQUEKEYBLOB}
+pattern PUBLICKEYBLOBEX = BlobType #{const PUBLICKEYBLOBEX}
+pattern SYMMETRICWRAPKEYBLOB = BlobType #{const SYMMETRICWRAPKEYBLOB}
+pattern KEYSTATEBLOB = BlobType #{const KEYSTATEBLOB}
+
+blobTypeNames :: [(BlobType, String)]
+blobTypeNames =
+  [ (SIMPLEBLOB, "SIMPLEBLOB")
+  , (PUBLICKEYBLOB, "PUBLICKEYBLOB")
+  , (PRIVATEKEYBLOB, "PRIVATEKEYBLOB")
+  , (PLAINTEXTKEYBLOB, "PLAINTEXTKEYBLOB")
+  , (OPAQUEKEYBLOB, "OPAQUEKEYBLOB")
+  , (PUBLICKEYBLOBEX, "PUBLICKEYBLOBEX")
+  , (SYMMETRICWRAPKEYBLOB, "SYMMETRICWRAPKEYBLOB")
+  , (KEYSTATEBLOB, "KEYSTATEBLOB")
+  ]
+
+instance Show BlobType where
+  show x = printf "BlobType { %s }" (pickName blobTypeNames unBlobType x)
+
+newtype BlobVersion = BlobVersion { unBlobVersion :: CChar }
+  deriving (Eq, Storable, Show)
+
+pattern CUR_BLOB_VERSION = BlobVersion #{const CUR_BLOB_VERSION}
+
+-- | Also known as PUBLICKEYSTRUC
+data BLOBHEADER = BLOBHEADER
+  { blobType     :: BlobType
+  , blobVersion  :: BlobVersion
+  , blobReserved :: CShort
+  , blobAiKeyAlg :: ALG_ID
+  } deriving (Show)
+
+instance Storable BLOBHEADER where
+  sizeOf _ = #{size BLOBHEADER}
+  alignment _ = alignment (undefined :: CInt)
+  poke p x = do
+    #{poke BLOBHEADER, bType} p $ blobType x
+    #{poke BLOBHEADER, bVersion} p $ blobVersion x
+    #{poke BLOBHEADER, reserved} p $ blobReserved x
+    #{poke BLOBHEADER, aiKeyAlg} p $ blobAiKeyAlg x
+  peek p = BLOBHEADER
+    <$> #{peek BLOBHEADER, bType} p
+    <*> #{peek BLOBHEADER, bVersion} p
+    <*> #{peek BLOBHEADER, reserved} p
+    <*> #{peek BLOBHEADER, aiKeyAlg} p
+
+newtype RsaPubMagic = RsaPubMagic { unRsaPubMagic :: DWORD }
+  deriving (Eq, Storable)
+
+pattern RSA1 = RsaPubMagic #{const 0x31415352}
+pattern RSA2 = RsaPubMagic #{const 0x32415352}
+
+rsaPubMagicNames :: [(RsaPubMagic, String)]
+rsaPubMagicNames =
+  [ (RSA1, "RSA1")
+  , (RSA2, "RSA2")
+  ]
+
+instance Show RsaPubMagic where
+  show x = printf "RsaPubMagic { %s }" (pickName rsaPubMagicNames unRsaPubMagic x)
+
+data RSAPUBKEY = RSAPUBKEY
+  { rsapubMagic  :: RsaPubMagic
+  -- ^ Quoting MSDN: Set to RSA1 (0x31415352) for public keys and to RSA2 (0x32415352) for private keys.
+  , rsapubBitlen :: DWORD
+  , rsapubPubexp :: DWORD
+  } deriving (Show)
+
+instance Storable RSAPUBKEY where
+  sizeOf _ = #{size RSAPUBKEY}
+  alignment _ = alignment (undefined :: CInt)
+  poke p x = do
+    #{poke RSAPUBKEY, magic} p $ rsapubMagic x
+    #{poke RSAPUBKEY, bitlen} p $ rsapubBitlen x
+    #{poke RSAPUBKEY, pubexp} p $ rsapubPubexp x
+  peek p = RSAPUBKEY
+    <$> #{peek RSAPUBKEY, magic} p
+    <*> #{peek RSAPUBKEY, bitlen} p
+    <*> #{peek RSAPUBKEY, pubexp} p
+
+newtype CryptImportKeyFlags = CryptImportKeyFlags { unCryptImportKeyFlags :: DWORD }
+  deriving (Eq, Bits, Show, Storable)
+
+-- BOOL WINAPI CryptImportKey(
+--   _In_  HCRYPTPROV hProv,
+--   _In_  BYTE       *pbData,
+--   _In_  DWORD      dwDataLen,
+--   _In_  HCRYPTKEY  hPubKey,
+--   _In_  DWORD      dwFlags,
+--   _Out_ HCRYPTKEY  *phKey
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CryptImportKey"
+  c_CryptImportKey
+    :: HCRYPTPROV -- hProv
+    -> Ptr () -- pbData
+    -> DWORD -- dwDataLen
+    -> HCRYPTKEY -- hPubKey
+    -> CryptImportKeyFlags -- dwFlags
+    -> Ptr HCRYPTKEY -- phKey
+    -> IO BOOL
+
+-- BOOL WINAPI CryptDestroyKey(
+--   _In_ HCRYPTKEY hKey
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CryptDestroyKey"
+  c_CryptDestroyKey
+    :: HCRYPTKEY
+    -> IO BOOL

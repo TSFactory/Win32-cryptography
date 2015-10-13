@@ -12,6 +12,7 @@ import Text.Printf
 
 type HCERTSTORE = HANDLE
 type HCRYPTPROV = HANDLE
+type HCRYPTKEY = HANDLE
 
 newtype ALG_ID = ALG_ID { unAlgId :: CUInt }
   deriving (Eq, Storable)
