@@ -50,7 +50,6 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
-import Data.ASN1.Types
 import Data.IORef
 import Foreign hiding (void)
 import Foreign.C
@@ -62,8 +61,6 @@ import System.Win32.Cryptography.Helpers
 import System.Win32.Cryptography.Types
 import System.Win32.Error.Foreign
 import qualified Crypto.PubKey.RSA as RSA
-import qualified Data.ASN1.BinaryEncoding as ASN1
-import qualified Data.ASN1.Encoding as ASN1
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Unsafe as BU
@@ -147,7 +144,7 @@ withPrivateKeyBlob privKey act =
 cryptProvFromPrivateKey :: X509.PrivKey -> ResourceT IO (ReleaseKey, HCRYPTPROV)
 cryptProvFromPrivateKey privKey = case privKey of
   X509.PrivKeyRSA rsaPrivKey -> do
-    (releaseProv, cryptProv) <- cryptAcquireContext Nothing (Just MS_DEF_PROV) PROV_RSA_FULL CRYPT_VERIFYCONTEXT
+    (releaseProv, cryptProv) <- cryptAcquireContext Nothing (Just MS_STRONG_PROV) PROV_RSA_FULL CRYPT_VERIFYCONTEXT
     (releaseKey, cryptKey) <- restoreM =<< liftBaseWith (\runInBase ->
       withPrivateKeyBlob rsaPrivKey $ \(pBlob, blobLen) ->
         let allocKey = alloca $ \phKey -> do
@@ -164,11 +161,17 @@ cryptProvFromPrivateKey privKey = case privKey of
     return (releaseAll, cryptProv)
   _ -> error "Importing key types other than RSA isn't implemented yet"
 
-certContextFromX509 :: (X509.Certificate, Maybe X509.PrivKey) -> ResourceT IO (ReleaseKey, PCERT_CONTEXT)
+certContextFromX509 :: (X509.SignedCertificate, Maybe X509.PrivKey) -> ResourceT IO (ReleaseKey, PCERT_CONTEXT)
 certContextFromX509 (cert, maybeKey) = do
-  let certPem = BL.toStrict $ ASN1.encodeASN1 ASN1.DER (toASN1 cert [])
+  let certPem = X509.encodeSignedObject cert
   (ctxRelease, ctx) <- certCreateCertificateContext X509_ASN_ENCODING certPem
   maybeReleaseAndProv <- forM maybeKey cryptProvFromPrivateKey
+  forM maybeReleaseAndProv $ \(releaseProv, cryptProv) -> liftIO $
+    with cryptProv $ \pData -> do
+      failIfFalse_ "CertSetCertificateContextProperty" $ c_CertSetCertificateContextProperty ctx CERT_KEY_PROV_HANDLE_PROP_ID 0 (castPtr pData)
+      -- MSDN says that after setting provider handle to certificate context, provider will be automatically released when context is released.
+      -- Therefore we might unregister the release action for the crypt provider
+      void $ unprotect releaseProv
   releaseAll <- resourceMask $ \_ -> do
     maybeCtxRelease <- unprotect ctxRelease
     maybeProvRelease <- join <$> forM maybeReleaseAndProv (unprotect . fst)
