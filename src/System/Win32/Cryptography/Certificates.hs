@@ -1,4 +1,4 @@
-{-# LANGUAGE MagicHash, OverloadedStrings, PatternSynonyms, ScopedTypeVariables #-}
+{-# LANGUAGE MagicHash, OverloadedStrings, PatternSynonyms, RecordWildCards, ScopedTypeVariables #-}
 module System.Win32.Cryptography.Certificates
   ( PCERT_CONTEXT
   , certCreateCertificateContext
@@ -40,9 +40,19 @@ module System.Win32.Cryptography.Certificates
   , pattern MS_SCARD_PROV
   , pattern MS_ENH_RSA_AES_PROV
   , pattern MS_ENH_RSA_AES_PROV_XP
+  , CertKeySpec (..)
+  , pattern AT_KEYEXCHANGE
+  , pattern AT_SIGNATURE
+  , pattern CERT_NCRYPT_KEY_SPEC
   , cryptAcquireContext
-  , cryptProvFromPrivateKey
+  , cryptImportRSAKey
   , certContextFromX509
+  , KeyProvInfoFlags (..)
+  , pattern CERT_SET_KEY_PROV_HANDLE_PROP_ID
+  , pattern KEY_PROV_INFO_CRYPT_MACHINE_KEYSET
+  , pattern KEY_PROV_INFO_CRYPT_SILENT
+  , CryptKeyProvInfo (..)
+  , certSetCertificateContextKeyProvInfo
   ) where
 
 import Control.Exception (bracket)
@@ -65,6 +75,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Unsafe as BU
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.X509 as X509
 
 -- | Wrapper over CertCreateCertificateContext Windows API function. Creates a 'PCERT_CONTEXT' from a
@@ -85,16 +96,18 @@ withCertCreateCertificateContext encType buffer act = BU.unsafeUseAsCStringLen b
   act
 
 cryptAcquireContext :: Maybe T.Text -> Maybe T.Text -> CryptProvType -> CryptAcquireContextFlags -> ResourceT IO (ReleaseKey, HCRYPTPROV)
-cryptAcquireContext container provider provType flags = resourceMask $ \_ -> do
-    cryptProv <- liftIO go
-    releaseKey <- register . void $ c_CryptReleaseContext cryptProv 0
-    return (releaseKey, cryptProv)
+cryptAcquireContext container provider provType flags = allocate allocContext releaseContext
   where
-    go = alloca $ \phProv ->
+    allocContext =
+      alloca $ \phProv ->
          maybe ($ nullPtr) useAsPtr0 container $ \pszContainer ->
          maybe ($ nullPtr) useAsPtr0 provider $ \pszProvider -> do
            failIfFalse_ "CryptAcquireContext" $ c_CryptAcquireContext phProv pszContainer pszProvider provType flags
            peek phProv
+    releaseContext prov =
+      if flags .&. CRYPT_DELETEKEYSET /= zeroBits
+        then return ()
+        else void $ c_CryptReleaseContext prov 0
 
 withPrivateKeyBlob :: RSA.PrivateKey -> (CStringLen -> IO a) -> IO a
 withPrivateKeyBlob privKey act =
@@ -141,41 +154,45 @@ withPrivateKeyBlob privKey act =
       exportIntegerToAddr x addr 0#
       writeIORef posRef (pos `plusPtr` sz)
 
-cryptProvFromPrivateKey :: X509.PrivKey -> ResourceT IO (ReleaseKey, HCRYPTPROV)
-cryptProvFromPrivateKey privKey = case privKey of
-  X509.PrivKeyRSA rsaPrivKey -> do
-    (releaseProv, cryptProv) <- cryptAcquireContext Nothing (Just MS_STRONG_PROV) PROV_RSA_FULL CRYPT_VERIFYCONTEXT
-    (releaseKey, cryptKey) <- restoreM =<< liftBaseWith (\runInBase ->
-      withPrivateKeyBlob rsaPrivKey $ \(pBlob, blobLen) ->
-        let allocKey = alloca $ \phKey -> do
-              failIfFalse_ "CryptImportKey" $ c_CryptImportKey cryptProv (castPtr pBlob) (fromIntegral blobLen) nullPtr zeroBits phKey
-              peek phKey
-            releaseKey = void . c_CryptDestroyKey
-        in  runInBase $ allocate allocKey releaseKey)
-    releaseAll <- resourceMask $ \_ -> do
-      maybeReleaseKey <- unprotect releaseKey
-      maybeReleaseProv <- unprotect releaseProv
-      register $ do
-        forM_ maybeReleaseKey id
-        forM_ maybeReleaseProv id
-    return (releaseAll, cryptProv)
-  _ -> error "Importing key types other than RSA isn't implemented yet"
+-- The whole sad story is as follows: Windows CryptoAPI doesn't have a way to use
+-- temporary keypair together with a CRYPT_KEY_PROV_INFO structure. This structure
+-- actually requires us to provide a true valid key container name, which means
+-- that goddamn container must be persisted. That's why there is no reliable way
+-- of creating both certificate and keypair from X509.SignedCertificate and
+-- RSA.PrivateKey on the fly.
 
-certContextFromX509 :: (X509.SignedCertificate, Maybe X509.PrivKey) -> ResourceT IO (ReleaseKey, PCERT_CONTEXT)
-certContextFromX509 (cert, maybeKey) = do
-  let certPem = X509.encodeSignedObject cert
-  (ctxRelease, ctx) <- certCreateCertificateContext X509_ASN_ENCODING certPem
-  maybeReleaseAndProv <- forM maybeKey cryptProvFromPrivateKey
-  forM maybeReleaseAndProv $ \(releaseProv, cryptProv) -> liftIO $
-    with cryptProv $ \pData -> do
-      failIfFalse_ "CertSetCertificateContextProperty" $ c_CertSetCertificateContextProperty ctx CERT_KEY_PROV_HANDLE_PROP_ID 0 (castPtr pData)
-      -- MSDN says that after setting provider handle to certificate context, provider will be automatically released when context is released.
-      -- Therefore we might unregister the release action for the crypt provider
-      void $ unprotect releaseProv
-  releaseAll <- resourceMask $ \_ -> do
-    maybeCtxRelease <- unprotect ctxRelease
-    maybeProvRelease <- join <$> forM maybeReleaseAndProv (unprotect . fst)
-    register $ do
-      forM_ maybeProvRelease id
-      forM_ maybeCtxRelease id
-  return (releaseAll, ctx)
+cryptImportRSAKey :: HCRYPTPROV -> RSA.PrivateKey -> ResourceT IO (ReleaseKey, HCRYPTKEY)
+cryptImportRSAKey prov key = allocate allocKey releaseKey
+  where
+    allocKey = withPrivateKeyBlob key $ \(pBlob, blobLen) ->
+               alloca $ \phKey -> do
+                 failIfFalse_ "CryptImportKey" $ c_CryptImportKey prov (castPtr pBlob) (fromIntegral blobLen) nullPtr zeroBits phKey
+                 peek phKey
+    releaseKey = void . c_CryptDestroyKey
+
+certContextFromX509 :: X509.SignedCertificate -> ResourceT IO (ReleaseKey, PCERT_CONTEXT)
+certContextFromX509 cert = certCreateCertificateContext X509_ASN_ENCODING (X509.encodeSignedObject cert)
+
+data CryptKeyProvInfo = CryptKeyProvInfo
+  { keyContainerName :: T.Text
+  , keyProvName      :: T.Text
+  , keyProvType      :: CryptProvType
+  , keyProvInfoFlags :: KeyProvInfoFlags
+  , keySpec          :: CertKeySpec
+  -- provParam stuff is omitted because type-safe wrappers aren't implemented yet.
+  } deriving (Show)
+
+certSetCertificateContextKeyProvInfo :: PCERT_CONTEXT -> CryptKeyProvInfo -> IO ()
+certSetCertificateContextKeyProvInfo ctx CryptKeyProvInfo{..} =
+  useAsPtr0 keyContainerName $ \szContName ->
+  useAsPtr0 keyProvName $ \szProvName ->
+  with CRYPT_KEY_PROV_INFO
+    { pwszContainerName = szContName
+    , pwszProvName = szProvName
+    , dwProvType = keyProvType
+    , dwFlags = keyProvInfoFlags
+    , cProvParam = 0
+    , rgProvParam = nullPtr
+    , dwKeySpec = keySpec
+    } $ \pData ->
+    failIfFalse_ "CertSetCertificateContextProperty" $ c_CertSetCertificateContextProperty ctx CERT_KEY_PROV_INFO_PROP_ID 0 (castPtr pData)

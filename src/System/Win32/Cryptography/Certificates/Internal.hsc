@@ -444,6 +444,8 @@ data CERT_KEY_CONTEXT = CERT_KEY_CONTEXT
   , certKeyDwKeySpec      :: CertKeySpec
   } deriving (Show)
 
+pattern CERT_KEY_CONTEXT_SIZE = #{size CERT_KEY_CONTEXT}
+
 instance Storable CERT_KEY_CONTEXT where
   sizeOf _ = #{size CERT_KEY_CONTEXT}
   alignment _ = alignment (undefined :: CInt)
@@ -455,6 +457,55 @@ instance Storable CERT_KEY_CONTEXT where
     <$> #{peek CERT_KEY_CONTEXT, cbSize} p
     <*> #{peek CERT_KEY_CONTEXT, hCryptProv} p
     <*> #{peek CERT_KEY_CONTEXT, dwKeySpec} p
+
+newtype KeyProvInfoFlags = KeyProvInfoFlags { unKeyProvInfoFlags :: DWORD }
+  deriving (Eq, Bits, Storable)
+
+pattern CERT_SET_KEY_PROV_HANDLE_PROP_ID = KeyProvInfoFlags #{const CERT_SET_KEY_PROV_HANDLE_PROP_ID}
+pattern KEY_PROV_INFO_CRYPT_MACHINE_KEYSET = KeyProvInfoFlags #{const CRYPT_MACHINE_KEYSET}
+pattern KEY_PROV_INFO_CRYPT_SILENT = KeyProvInfoFlags #{const CRYPT_SILENT}
+
+keyProvInfoNames :: [(KeyProvInfoFlags, String)]
+keyProvInfoNames =
+  [ (CERT_SET_KEY_PROV_HANDLE_PROP_ID, "CERT_SET_KEY_PROV_HANDLE_PROP_ID")
+  , (KEY_PROV_INFO_CRYPT_MACHINE_KEYSET, "KEY_PROV_INFO_CRYPT_MACHINE_KEYSET")
+  , (KEY_PROV_INFO_CRYPT_SILENT, "KEY_PROV_INFO_CRYPT_SILENT")
+  ]
+
+instance Show KeyProvInfoFlags where
+  show x = printf "KeyProvInfoFlags{ %s }" (parseBitFlags keyProvInfoNames unKeyProvInfoFlags x)
+
+data CRYPT_KEY_PROV_PARAM
+
+data CRYPT_KEY_PROV_INFO = CRYPT_KEY_PROV_INFO
+  { pwszContainerName :: LPWSTR
+  , pwszProvName      :: LPWSTR
+  , dwProvType        :: CryptProvType
+  , dwFlags           :: KeyProvInfoFlags
+  , cProvParam        :: DWORD
+  , rgProvParam       :: Ptr CRYPT_KEY_PROV_PARAM
+  , dwKeySpec         :: CertKeySpec
+  }
+
+instance Storable CRYPT_KEY_PROV_INFO where
+  sizeOf _ = #{size CRYPT_KEY_PROV_INFO}
+  alignment _ = alignment (undefined :: CInt)
+  poke p x = do
+    #{poke CRYPT_KEY_PROV_INFO, pwszContainerName} p $ pwszContainerName x
+    #{poke CRYPT_KEY_PROV_INFO, pwszProvName} p $ pwszProvName x
+    #{poke CRYPT_KEY_PROV_INFO, dwProvType} p $ dwProvType x
+    #{poke CRYPT_KEY_PROV_INFO, dwFlags} p $ dwFlags x
+    #{poke CRYPT_KEY_PROV_INFO, cProvParam} p $ cProvParam x
+    #{poke CRYPT_KEY_PROV_INFO, rgProvParam} p $ rgProvParam x
+    #{poke CRYPT_KEY_PROV_INFO, dwKeySpec} p $ dwKeySpec x
+  peek p = CRYPT_KEY_PROV_INFO
+    <$> #{peek CRYPT_KEY_PROV_INFO, pwszContainerName} p
+    <*> #{peek CRYPT_KEY_PROV_INFO, pwszProvName} p
+    <*> #{peek CRYPT_KEY_PROV_INFO, dwProvType} p
+    <*> #{peek CRYPT_KEY_PROV_INFO, dwFlags} p
+    <*> #{peek CRYPT_KEY_PROV_INFO, cProvParam} p
+    <*> #{peek CRYPT_KEY_PROV_INFO, rgProvParam} p
+    <*> #{peek CRYPT_KEY_PROV_INFO, dwKeySpec} p
 
 newtype CryptAcquireContextFlags = CryptAcquireContextFlags { unCryptAcquireContextFlags :: DWORD }
   deriving (Eq, Bits, Storable)

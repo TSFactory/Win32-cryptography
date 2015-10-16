@@ -33,6 +33,7 @@ library
   exposed-modules:
     System.Win32.Cryptography.Certificates
     System.Win32.Cryptography.Encoding
+    System.Win32.Cryptography.Errors
     System.Win32.Cryptography.Types
   other-modules:
     System.Win32.Cryptography.Certificates.Internal
