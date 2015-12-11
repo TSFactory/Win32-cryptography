@@ -103,6 +103,12 @@ instance Storable CERT_INFO where
     <*> #{peek CERT_INFO, cExtension} p
     <*> #{peek CERT_INFO, rgExtension} p
 
+certInfoIssuerPtr :: Ptr CERT_INFO -> Ptr CERT_NAME_BLOB
+certInfoIssuerPtr = #{ptr CERT_INFO, Issuer}
+
+certInfoSubjectPtr :: Ptr CERT_INFO -> Ptr CERT_NAME_BLOB
+certInfoSubjectPtr = #{ptr CERT_INFO, Subject}
+
 type PCERT_INFO = Ptr CERT_INFO
 
 data CRYPTOAPI_BLOB = CRYPTOAPI_BLOB
@@ -864,3 +870,105 @@ foreign import WINDOWS_CCONV "wincrypt.h CertOpenStore"
     -> CertOpenStoreFlags
     -> Ptr ()
     -> IO HCERTSTORE
+
+newtype CloseStoreFlags = CloseStoreFlags { unCloseStoreFlags :: DWORD }
+  deriving (Eq, Bits, Storable)
+
+pattern CERT_CLOSE_STORE_CHECK_FLAG = CloseStoreFlags #{const CERT_CLOSE_STORE_CHECK_FLAG}
+pattern CERT_CLOSE_STORE_FORCE_FLAG = CloseStoreFlags #{const CERT_CLOSE_STORE_FORCE_FLAG}
+
+closeStoreFlagNames :: [(CloseStoreFlags, String)]
+closeStoreFlagNames =
+  [ (CERT_CLOSE_STORE_CHECK_FLAG, "CERT_CLOSE_STORE_CHECK_FLAG")
+  , (CERT_CLOSE_STORE_FORCE_FLAG, "CERT_CLOSE_STORE_FORCE_FLAG")
+  ]
+
+instance Show CloseStoreFlags where
+  show x = printf "CloseStoreFlags{ %s }" (parseBitFlags closeStoreFlagNames unCloseStoreFlags x)
+
+-- BOOL WINAPI CertCloseStore(
+--   _In_ HCERTSTORE hCertStore,
+--   _In_ DWORD      dwFlags
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CertCloseStore"
+  c_CertCloseStore
+    :: HCERTSTORE
+    -> CloseStoreFlags
+    -> IO BOOL
+
+-- PCCERT_CONTEXT WINAPI CertEnumCertificatesInStore(
+--   _In_ HCERTSTORE     hCertStore,
+--   _In_ PCCERT_CONTEXT pPrevCertContext
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CertEnumCertificatesInStore"
+  c_CertEnumCertificatesInStore
+    :: HCERTSTORE
+    -> PCERT_CONTEXT
+    -> IO PCERT_CONTEXT
+
+-- PCCERT_CONTEXT WINAPI CertDuplicateCertificateContext(
+--   _In_ PCCERT_CONTEXT pCertContext
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CertDuplicateCertificateContext"
+  c_CertDuplicateCertificateContext
+    :: PCERT_CONTEXT
+    -> IO PCERT_CONTEXT
+
+newtype StrType = StrType { unStrType :: DWORD }
+  deriving (Eq, Bits, Storable)
+
+pattern CERT_SIMPLE_NAME_STR = StrType #{const CERT_SIMPLE_NAME_STR}
+pattern CERT_OID_NAME_STR = StrType #{const CERT_OID_NAME_STR}
+pattern CERT_X500_NAME_STR = StrType #{const CERT_X500_NAME_STR}
+
+pattern CERT_NAME_STR_SEMICOLON_FLAG = StrType #{const CERT_NAME_STR_SEMICOLON_FLAG}
+pattern CERT_NAME_STR_CRLF_FLAG = StrType #{const CERT_NAME_STR_CRLF_FLAG}
+pattern CERT_NAME_STR_NO_PLUS_FLAG = StrType #{const CERT_NAME_STR_NO_PLUS_FLAG}
+pattern CERT_NAME_STR_NO_QUOTING_FLAG = StrType #{const CERT_NAME_STR_NO_QUOTING_FLAG}
+pattern CERT_NAME_STR_REVERSE_FLAG = StrType #{const CERT_NAME_STR_REVERSE_FLAG}
+pattern CERT_NAME_STR_DISABLE_IE4_UTF8_FLAG = StrType #{const CERT_NAME_STR_DISABLE_IE4_UTF8_FLAG}
+pattern CERT_NAME_STR_ENABLE_PUNYCODE_FLAG = StrType #{const CERT_NAME_STR_ENABLE_PUNYCODE_FLAG}
+
+strTypeNames :: [(StrType, String)]
+strTypeNames =
+  [ (CERT_SIMPLE_NAME_STR, "CERT_SIMPLE_NAME_STR")
+  , (CERT_OID_NAME_STR, "CERT_OID_NAME_STR")
+  , (CERT_X500_NAME_STR, "CERT_X500_NAME_STR")
+  , (CERT_NAME_STR_SEMICOLON_FLAG, "CERT_NAME_STR_SEMICOLON_FLAG")
+  , (CERT_NAME_STR_CRLF_FLAG, "CERT_NAME_STR_CRLF_FLAG")
+  , (CERT_NAME_STR_NO_PLUS_FLAG, "CERT_NAME_STR_NO_PLUS_FLAG")
+  , (CERT_NAME_STR_NO_QUOTING_FLAG, "CERT_NAME_STR_NO_QUOTING_FLAG")
+  , (CERT_NAME_STR_REVERSE_FLAG, "CERT_NAME_STR_REVERSE_FLAG")
+  , (CERT_NAME_STR_DISABLE_IE4_UTF8_FLAG, "CERT_NAME_STR_DISABLE_IE4_UTF8_FLAG")
+  , (CERT_NAME_STR_ENABLE_PUNYCODE_FLAG, "CERT_NAME_STR_ENABLE_PUNYCODE_FLAG")
+  ]
+
+strTypeBitFlags :: [StrType]
+strTypeBitFlags =
+  [ CERT_NAME_STR_SEMICOLON_FLAG
+  , CERT_NAME_STR_CRLF_FLAG
+  , CERT_NAME_STR_NO_PLUS_FLAG
+  , CERT_NAME_STR_NO_QUOTING_FLAG
+  , CERT_NAME_STR_REVERSE_FLAG
+  , CERT_NAME_STR_DISABLE_IE4_UTF8_FLAG
+  , CERT_NAME_STR_ENABLE_PUNYCODE_FLAG
+  ]
+
+instance Show StrType where
+  show x = printf "StrType { %s }" (parseEnumWithFlags strTypeNames strTypeBitFlags unStrType x)
+
+-- DWORD WINAPI CertNameToStr(
+--   _In_  DWORD           dwCertEncodingType,
+--   _In_  PCERT_NAME_BLOB pName,
+--   _In_  DWORD           dwStrType,
+--   _Out_ LPTSTR          psz,
+--   _In_  DWORD           csz
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CertNameToStrW"
+  c_CertNameToStr
+    :: EncodingType
+    -> PCERT_NAME_BLOB
+    -> StrType
+    -> Ptr CWchar
+    -> DWORD
+    -> IO DWORD

@@ -53,6 +53,7 @@ module System.Win32.Cryptography.Certificates
   , pattern KEY_PROV_INFO_CRYPT_SILENT
   , CryptKeyProvInfo (..)
   , certSetCertificateContextKeyProvInfo
+  , HCERTSTORE
   , pattern CERT_STORE_PROV_MSG
   , pattern CERT_STORE_PROV_MEMORY
   , pattern CERT_STORE_PROV_FILE
@@ -92,9 +93,18 @@ module System.Win32.Cryptography.Certificates
   , pattern CERT_SYSTEM_STORE_SERVICES
   , pattern CERT_SYSTEM_STORE_USERS
   , certOpenStore
+  , pattern CERT_CLOSE_STORE_CHECK_FLAG
+  , pattern CERT_CLOSE_STORE_FORCE_FLAG
+  , certCloseStore
+  , certFreeCertificateContext
+  , unsafeEnumCertificatesInStore
+  , getAllCertificatesInStore
+  , certDuplicateCertificateContext
+  , CertInfo (..)
+  , certContextGetInfo
   ) where
 
-import Control.Exception (bracket)
+import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Control
@@ -115,6 +125,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Unsafe as BU
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.Text.Foreign as T
 import qualified Data.X509 as X509
 
 -- | Wrapper over CertCreateCertificateContext Windows API function. Creates a 'PCERT_CONTEXT' from a
@@ -241,7 +252,80 @@ withStoreProviderPtr sp act = case sp of
   StoreProviderPredefined predef -> act $ intPtrToPtr predef
   StoreProviderCustom custom -> BU.unsafeUseAsCString custom act
 
-certOpenStore :: StoreProvider -> EncodingType -> CertOpenStoreFlags -> Ptr () -> IO HCERTSTORE
-certOpenStore prov encType cosFlags pvPara = do
-  withStoreProviderPtr prov $ \lpszStoreProvider ->
-    failIfNull "CertOpenStore" $ c_CertOpenStore lpszStoreProvider encType nullPtr cosFlags pvPara
+certOpenStore :: StoreProvider -> EncodingType -> CertOpenStoreFlags -> Ptr () -> ResourceT IO (ReleaseKey, HCERTSTORE)
+certOpenStore prov encType cosFlags pvPara = liftBaseWith $ \runInBase ->
+  withStoreProviderPtr prov $ \lpszStoreProvider -> runInBase $
+    allocate
+      (failIfNull "CertOpenStore" $ c_CertOpenStore lpszStoreProvider encType nullPtr cosFlags pvPara)
+      (\s -> certCloseStore s zeroBits)
+
+-- | Closes given cert store. Never throws (even if fails).
+certCloseStore :: HCERTSTORE -> CloseStoreFlags -> IO ()
+certCloseStore store flags = void $ c_CertCloseStore store flags
+
+-- | Enumerates certificates in store by running given action with each of them.
+-- This function is unsafe because after given action returns, its parameter should
+-- no longer be used.
+-- Action should return 'True' if enumeration should continue and 'False' if
+-- enumeration should terminate without visiting remaining certificates.
+unsafeEnumCertificatesInStore :: HCERTSTORE -> (PCERT_CONTEXT -> IO Bool) -> IO ()
+unsafeEnumCertificatesInStore store act = do
+  lastCertContextRef <- newIORef nullPtr
+  let loop = do
+        lastCertContext <- readIORef lastCertContextRef
+        res <- do
+          cert <- mask_ $
+            do cert <- c_CertEnumCertificatesInStore store lastCertContext
+               writeIORef lastCertContextRef cert
+               return cert
+          if cert == nullPtr
+            then pure Nothing
+            else Just <$> act cert
+        case res of
+          Just True -> loop
+          _ -> return ()
+  loop `finally` (readIORef lastCertContextRef >>= \lastCertContext -> unless (lastCertContext == nullPtr) (certFreeCertificateContext lastCertContext))
+
+-- | Frees given certificate context. Never throws (even if fails)
+certFreeCertificateContext :: PCERT_CONTEXT -> IO ()
+certFreeCertificateContext = void . c_CertFreeCertificateContext
+
+getAllCertificatesInStore :: HCERTSTORE -> ResourceT IO [(ReleaseKey, PCERT_CONTEXT)]
+getAllCertificatesInStore store = do
+  resultRef <- liftIO $ newIORef []
+  liftBaseWith $ \runInBase -> unsafeEnumCertificatesInStore store $ \cert -> do
+    dup <- runInBase $ allocate (certDuplicateCertificateContext cert) certFreeCertificateContext
+    modifyIORef resultRef $ \x -> x `mappend` [dup]
+    return True
+  res <- liftIO $ readIORef resultRef
+  mapM restoreM res
+
+certDuplicateCertificateContext :: PCERT_CONTEXT -> IO PCERT_CONTEXT
+certDuplicateCertificateContext = failIfNull "CertDuplicateCertificateContext" . c_CertDuplicateCertificateContext
+
+-- | There is actually much more information in the underlying Windows API CERT_INFO structure.
+-- That info just is not present in this structure. Feel free to add it if you have a need.
+data CertInfo = CertInfo
+  { certInfoIssuer  :: T.Text
+  , certInfoSubject :: T.Text
+  } deriving (Show)
+
+certContextGetInfo :: PCERT_CONTEXT -> IO (Maybe CertInfo)
+certContextGetInfo pCtx = if pCtx == nullPtr then return Nothing else do
+  ctx <- peek pCtx
+  if pCertInfo ctx == nullPtr then return Nothing else Just <$> do
+    let certIssuerPtr = certInfoIssuerPtr $ pCertInfo ctx
+        certSubjectPtr = certInfoSubjectPtr $ pCertInfo ctx
+    certIssuer <- certNameToStr certIssuerPtr CERT_SIMPLE_NAME_STR
+    certSubject <- certNameToStr certSubjectPtr CERT_SIMPLE_NAME_STR
+    return CertInfo
+      { certInfoIssuer = certIssuer
+      , certInfoSubject = certSubject
+      }
+
+certNameToStr :: PCERT_NAME_BLOB -> StrType -> IO T.Text
+certNameToStr name strType = if name == nullPtr then return T.empty else do
+  charsNeeded <- c_CertNameToStr X509_ASN_ENCODING name strType nullPtr 0
+  if charsNeeded == 0 then return T.empty else allocaBytes ((fromIntegral charsNeeded) * sizeOf (undefined :: CWchar)) $ \psz -> do
+    newLen <- c_CertNameToStr X509_ASN_ENCODING name strType psz charsNeeded
+    T.fromPtr (castPtr psz) (fromIntegral newLen - 1)
