@@ -53,6 +53,45 @@ module System.Win32.Cryptography.Certificates
   , pattern KEY_PROV_INFO_CRYPT_SILENT
   , CryptKeyProvInfo (..)
   , certSetCertificateContextKeyProvInfo
+  , pattern CERT_STORE_PROV_MSG
+  , pattern CERT_STORE_PROV_MEMORY
+  , pattern CERT_STORE_PROV_FILE
+  , pattern CERT_STORE_PROV_REG
+  , pattern CERT_STORE_PROV_PKCS7
+  , pattern CERT_STORE_PROV_SERIALIZED
+  , pattern CERT_STORE_PROV_FILENAME_A
+  , pattern CERT_STORE_PROV_FILENAME_W
+  , pattern CERT_STORE_PROV_FILENAME
+  , pattern CERT_STORE_PROV_SYSTEM_A
+  , pattern CERT_STORE_PROV_SYSTEM_W
+  , pattern CERT_STORE_PROV_SYSTEM
+  , pattern CERT_STORE_PROV_COLLECTION
+  , pattern CERT_STORE_PROV_SYSTEM_REGISTRY_A
+  , pattern CERT_STORE_PROV_SYSTEM_REGISTRY_W
+  , pattern CERT_STORE_PROV_SYSTEM_REGISTRY
+  , pattern CERT_STORE_PROV_PHYSICAL_W
+  , pattern CERT_STORE_PROV_PHYSICAL
+  , pattern CERT_STORE_BACKUP_RESTORE_FLAG
+  , pattern CERT_STORE_CREATE_NEW_FLAG
+  , pattern CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG
+  , pattern CERT_STORE_DELETE_FLAG
+  , pattern CERT_STORE_ENUM_ARCHIVED_FLAG
+  , pattern CERT_STORE_MAXIMUM_ALLOWED_FLAG
+  , pattern CERT_STORE_NO_CRYPT_RELEASE_FLAG
+  , pattern CERT_STORE_OPEN_EXISTING_FLAG
+  , pattern CERT_STORE_READONLY_FLAG
+  , pattern CERT_STORE_SET_LOCALIZED_NAME_FLAG
+  , pattern CERT_STORE_SHARE_CONTEXT_FLAG
+  , pattern CERT_STORE_UPDATE_KEYID_FLAG
+  , pattern CERT_SYSTEM_STORE_CURRENT_SERVICE
+  , pattern CERT_SYSTEM_STORE_CURRENT_USER
+  , pattern CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY
+  , pattern CERT_SYSTEM_STORE_LOCAL_MACHINE
+  , pattern CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE
+  , pattern CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY
+  , pattern CERT_SYSTEM_STORE_SERVICES
+  , pattern CERT_SYSTEM_STORE_USERS
+  , certOpenStore
   ) where
 
 import Control.Exception (bracket)
@@ -196,3 +235,13 @@ certSetCertificateContextKeyProvInfo ctx CryptKeyProvInfo{..} =
     , dwKeySpec = keySpec
     } $ \pData ->
     failIfFalse_ "CertSetCertificateContextProperty" $ c_CertSetCertificateContextProperty ctx CERT_KEY_PROV_INFO_PROP_ID 0 (castPtr pData)
+
+withStoreProviderPtr :: StoreProvider -> (Ptr CChar -> IO a) -> IO a
+withStoreProviderPtr sp act = case sp of
+  StoreProviderPredefined predef -> act $ intPtrToPtr predef
+  StoreProviderCustom custom -> BU.unsafeUseAsCString custom act
+
+certOpenStore :: StoreProvider -> EncodingType -> CertOpenStoreFlags -> Ptr () -> IO HCERTSTORE
+certOpenStore prov encType cosFlags pvPara = do
+  withStoreProviderPtr prov $ \lpszStoreProvider ->
+    failIfNull "CertOpenStore" $ c_CertOpenStore lpszStoreProvider encType nullPtr cosFlags pvPara

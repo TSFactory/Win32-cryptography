@@ -9,6 +9,7 @@ import System.Win32.Cryptography.Types.Internal
 import System.Win32.Time
 import System.Win32.Types
 import Text.Printf
+import qualified Data.ByteString as B
 import qualified Data.Text as T
 
 #include <windows.h>
@@ -744,3 +745,122 @@ foreign import WINDOWS_CCONV "wincrypt.h CryptDestroyKey"
   c_CryptDestroyKey
     :: HCRYPTKEY
     -> IO BOOL
+
+data StoreProvider
+  = StoreProviderPredefined IntPtr
+  | StoreProviderCustom B.ByteString
+  deriving (Eq)
+
+pattern CERT_STORE_PROV_MSG = StoreProviderPredefined #{const CERT_STORE_PROV_MSG}
+pattern CERT_STORE_PROV_MEMORY = StoreProviderPredefined #{const CERT_STORE_PROV_MEMORY}
+pattern CERT_STORE_PROV_FILE = StoreProviderPredefined #{const CERT_STORE_PROV_FILE}
+pattern CERT_STORE_PROV_REG = StoreProviderPredefined #{const CERT_STORE_PROV_REG}
+pattern CERT_STORE_PROV_PKCS7 = StoreProviderPredefined #{const CERT_STORE_PROV_PKCS7}
+pattern CERT_STORE_PROV_SERIALIZED = StoreProviderPredefined #{const CERT_STORE_PROV_SERIALIZED}
+pattern CERT_STORE_PROV_FILENAME_A = StoreProviderPredefined #{const CERT_STORE_PROV_FILENAME_A}
+pattern CERT_STORE_PROV_FILENAME_W = StoreProviderPredefined #{const CERT_STORE_PROV_FILENAME_W}
+pattern CERT_STORE_PROV_FILENAME = StoreProviderPredefined #{const CERT_STORE_PROV_FILENAME}
+pattern CERT_STORE_PROV_SYSTEM_A = StoreProviderPredefined #{const CERT_STORE_PROV_SYSTEM_A}
+pattern CERT_STORE_PROV_SYSTEM_W = StoreProviderPredefined #{const CERT_STORE_PROV_SYSTEM_W}
+pattern CERT_STORE_PROV_SYSTEM = StoreProviderPredefined #{const CERT_STORE_PROV_SYSTEM}
+pattern CERT_STORE_PROV_COLLECTION = StoreProviderPredefined #{const CERT_STORE_PROV_COLLECTION}
+pattern CERT_STORE_PROV_SYSTEM_REGISTRY_A = StoreProviderPredefined #{const CERT_STORE_PROV_SYSTEM_REGISTRY_A}
+pattern CERT_STORE_PROV_SYSTEM_REGISTRY_W = StoreProviderPredefined #{const CERT_STORE_PROV_SYSTEM_REGISTRY_W}
+pattern CERT_STORE_PROV_SYSTEM_REGISTRY = StoreProviderPredefined #{const CERT_STORE_PROV_SYSTEM_REGISTRY}
+pattern CERT_STORE_PROV_PHYSICAL_W = StoreProviderPredefined #{const CERT_STORE_PROV_PHYSICAL_W}
+pattern CERT_STORE_PROV_PHYSICAL = StoreProviderPredefined #{const CERT_STORE_PROV_PHYSICAL}
+
+storeProviderPredefinedNames :: [(IntPtr, String)]
+storeProviderPredefinedNames =
+  [ (#{const CERT_STORE_PROV_MSG}, "CERT_STORE_PROV_MSG")
+  , (#{const CERT_STORE_PROV_MEMORY}, "CERT_STORE_PROV_MEMORY")
+  , (#{const CERT_STORE_PROV_FILE}, "CERT_STORE_PROV_FILE")
+  , (#{const CERT_STORE_PROV_REG}, "CERT_STORE_PROV_REG")
+  , (#{const CERT_STORE_PROV_PKCS7}, "CERT_STORE_PROV_PKCS7")
+  , (#{const CERT_STORE_PROV_SERIALIZED}, "CERT_STORE_PROV_SERIALIZED")
+  , (#{const CERT_STORE_PROV_FILENAME_A}, "CERT_STORE_PROV_FILENAME_A")
+  , (#{const CERT_STORE_PROV_FILENAME_W}, "CERT_STORE_PROV_FILENAME_W")
+  , (#{const CERT_STORE_PROV_FILENAME}, "CERT_STORE_PROV_FILENAME")
+  , (#{const CERT_STORE_PROV_SYSTEM_A}, "CERT_STORE_PROV_SYSTEM_A")
+  , (#{const CERT_STORE_PROV_SYSTEM_W}, "CERT_STORE_PROV_SYSTEM_W")
+  , (#{const CERT_STORE_PROV_SYSTEM}, "CERT_STORE_PROV_SYSTEM")
+  , (#{const CERT_STORE_PROV_COLLECTION}, "CERT_STORE_PROV_COLLECTION")
+  , (#{const CERT_STORE_PROV_SYSTEM_REGISTRY_A}, "CERT_STORE_PROV_SYSTEM_REGISTRY_A")
+  , (#{const CERT_STORE_PROV_SYSTEM_REGISTRY_W}, "CERT_STORE_PROV_SYSTEM_REGISTRY_W")
+  , (#{const CERT_STORE_PROV_SYSTEM_REGISTRY}, "CERT_STORE_PROV_SYSTEM_REGISTRY")
+  , (#{const CERT_STORE_PROV_PHYSICAL_W}, "CERT_STORE_PROV_PHYSICAL_W")
+  , (#{const CERT_STORE_PROV_PHYSICAL}, "CERT_STORE_PROV_PHYSICAL")
+  ]
+
+instance Show StoreProvider where
+  show (StoreProviderPredefined predef) = case lookup predef storeProviderPredefinedNames of
+    Just name -> "StoreProviderPredefined " ++ name
+    Nothing -> "StoreProviderPredefined " ++ show predef
+  show (StoreProviderCustom custom) = "StoreProviderCustom " ++ show custom
+
+newtype CertOpenStoreFlags = CertOpenStoreFlags { unCertOpenStoreFlags :: DWORD }
+  deriving (Eq, Bits, Storable)
+
+pattern CERT_STORE_BACKUP_RESTORE_FLAG = CertOpenStoreFlags #{const CERT_STORE_BACKUP_RESTORE_FLAG}
+pattern CERT_STORE_CREATE_NEW_FLAG = CertOpenStoreFlags #{const CERT_STORE_CREATE_NEW_FLAG}
+pattern CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG = CertOpenStoreFlags #{const CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG}
+pattern CERT_STORE_DELETE_FLAG = CertOpenStoreFlags #{const CERT_STORE_DELETE_FLAG}
+pattern CERT_STORE_ENUM_ARCHIVED_FLAG = CertOpenStoreFlags #{const CERT_STORE_ENUM_ARCHIVED_FLAG}
+pattern CERT_STORE_MAXIMUM_ALLOWED_FLAG = CertOpenStoreFlags #{const CERT_STORE_MAXIMUM_ALLOWED_FLAG}
+pattern CERT_STORE_NO_CRYPT_RELEASE_FLAG = CertOpenStoreFlags #{const CERT_STORE_NO_CRYPT_RELEASE_FLAG}
+pattern CERT_STORE_OPEN_EXISTING_FLAG = CertOpenStoreFlags #{const CERT_STORE_OPEN_EXISTING_FLAG}
+pattern CERT_STORE_READONLY_FLAG = CertOpenStoreFlags #{const CERT_STORE_READONLY_FLAG}
+pattern CERT_STORE_SET_LOCALIZED_NAME_FLAG = CertOpenStoreFlags #{const CERT_STORE_SET_LOCALIZED_NAME_FLAG}
+pattern CERT_STORE_SHARE_CONTEXT_FLAG = CertOpenStoreFlags #{const CERT_STORE_SHARE_CONTEXT_FLAG}
+pattern CERT_STORE_UPDATE_KEYID_FLAG = CertOpenStoreFlags #{const CERT_STORE_UPDATE_KEYID_FLAG}
+pattern CERT_SYSTEM_STORE_CURRENT_SERVICE = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_CURRENT_SERVICE}
+pattern CERT_SYSTEM_STORE_CURRENT_USER = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_CURRENT_USER}
+pattern CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY}
+pattern CERT_SYSTEM_STORE_LOCAL_MACHINE = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_LOCAL_MACHINE}
+pattern CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE}
+pattern CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY}
+pattern CERT_SYSTEM_STORE_SERVICES = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_SERVICES}
+pattern CERT_SYSTEM_STORE_USERS = CertOpenStoreFlags #{const CERT_SYSTEM_STORE_USERS}
+
+certOpenStoreFlagNames :: [(CertOpenStoreFlags, String)]
+certOpenStoreFlagNames =
+  [ (CERT_STORE_BACKUP_RESTORE_FLAG, "CERT_STORE_BACKUP_RESTORE_FLAG")
+  , (CERT_STORE_CREATE_NEW_FLAG, "CERT_STORE_CREATE_NEW_FLAG")
+  , (CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG, "CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG")
+  , (CERT_STORE_DELETE_FLAG, "CERT_STORE_DELETE_FLAG")
+  , (CERT_STORE_ENUM_ARCHIVED_FLAG, "CERT_STORE_ENUM_ARCHIVED_FLAG")
+  , (CERT_STORE_MAXIMUM_ALLOWED_FLAG, "CERT_STORE_MAXIMUM_ALLOWED_FLAG")
+  , (CERT_STORE_NO_CRYPT_RELEASE_FLAG, "CERT_STORE_NO_CRYPT_RELEASE_FLAG")
+  , (CERT_STORE_OPEN_EXISTING_FLAG, "CERT_STORE_OPEN_EXISTING_FLAG")
+  , (CERT_STORE_READONLY_FLAG, "CERT_STORE_READONLY_FLAG")
+  , (CERT_STORE_SET_LOCALIZED_NAME_FLAG, "CERT_STORE_SET_LOCALIZED_NAME_FLAG")
+  , (CERT_STORE_SHARE_CONTEXT_FLAG, "CERT_STORE_SHARE_CONTEXT_FLAG")
+  , (CERT_STORE_UPDATE_KEYID_FLAG, "CERT_STORE_UPDATE_KEYID_FLAG")
+  , (CERT_SYSTEM_STORE_CURRENT_SERVICE, "CERT_SYSTEM_STORE_CURRENT_SERVICE")
+  , (CERT_SYSTEM_STORE_CURRENT_USER, "CERT_SYSTEM_STORE_CURRENT_USER")
+  , (CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY, "CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY")
+  , (CERT_SYSTEM_STORE_LOCAL_MACHINE, "CERT_SYSTEM_STORE_LOCAL_MACHINE")
+  , (CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE, "CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE")
+  , (CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY, "CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY")
+  , (CERT_SYSTEM_STORE_SERVICES, "CERT_SYSTEM_STORE_SERVICES")
+  , (CERT_SYSTEM_STORE_USERS, "CERT_SYSTEM_STORE_USERS")
+  ]
+
+instance Show CertOpenStoreFlags where
+  show x = printf "CertOpenStoreFlags{ %s }" (parseBitFlags certOpenStoreFlagNames unCertOpenStoreFlags x)
+
+-- HCERTSTORE WINAPI CertOpenStore(
+--   _In_       LPCSTR            lpszStoreProvider,
+--   _In_       DWORD             dwMsgAndCertEncodingType,
+--   _In_       HCRYPTPROV_LEGACY hCryptProv,
+--   _In_       DWORD             dwFlags,
+--   _In_ const void              *pvPara
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CertOpenStore"
+  c_CertOpenStore
+    :: Ptr CChar
+    -> EncodingType
+    -> Ptr ()
+    -> CertOpenStoreFlags
+    -> Ptr ()
+    -> IO HCERTSTORE
