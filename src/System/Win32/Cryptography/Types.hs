@@ -9,7 +9,8 @@ module System.Win32.Cryptography.Types
   , HCERTSTORE
   , HCRYPTPROV
   , HCRYPTKEY
-  , ALG_ID
+  , HCRYPTHASH
+  , ALG_ID (..)
   , pattern CALG_MD2
   , pattern CALG_MD4
   , pattern CALG_MD5

@@ -34,10 +34,12 @@ library
     System.Win32.Cryptography.Certificates
     System.Win32.Cryptography.Encoding
     System.Win32.Cryptography.Errors
+    System.Win32.Cryptography.Hash
     System.Win32.Cryptography.Types
   other-modules:
     System.Win32.Cryptography.Certificates.Internal
     System.Win32.Cryptography.Encoding.Internal
+    System.Win32.Cryptography.Hash.Internal
     System.Win32.Cryptography.Helpers
     System.Win32.Cryptography.Types.Internal
   hs-source-dirs: src
