@@ -972,3 +972,92 @@ foreign import WINDOWS_CCONV "wincrypt.h CertNameToStrW"
     -> Ptr CWchar
     -> DWORD
     -> IO DWORD
+
+newtype CertFindType = CertFindType { unCertFindType :: DWORD }
+  deriving (Eq, Storable)
+
+pattern CERT_FIND_ANY = CertFindType #{const CERT_FIND_ANY}
+pattern CERT_FIND_SHA1_HASH = CertFindType #{const CERT_FIND_SHA1_HASH}
+pattern CERT_FIND_MD5_HASH = CertFindType #{const CERT_FIND_MD5_HASH}
+pattern CERT_FIND_SIGNATURE_HASH = CertFindType #{const CERT_FIND_SIGNATURE_HASH}
+pattern CERT_FIND_KEY_IDENTIFIER = CertFindType #{const CERT_FIND_KEY_IDENTIFIER}
+pattern CERT_FIND_HASH = CertFindType #{const CERT_FIND_HASH}
+pattern CERT_FIND_PROPERTY = CertFindType #{const CERT_FIND_PROPERTY}
+pattern CERT_FIND_PUBLIC_KEY = CertFindType #{const CERT_FIND_PUBLIC_KEY}
+pattern CERT_FIND_SUBJECT_NAME = CertFindType #{const CERT_FIND_SUBJECT_NAME}
+pattern CERT_FIND_SUBJECT_ATTR = CertFindType #{const CERT_FIND_SUBJECT_ATTR}
+pattern CERT_FIND_ISSUER_NAME = CertFindType #{const CERT_FIND_ISSUER_NAME}
+pattern CERT_FIND_ISSUER_ATTR = CertFindType #{const CERT_FIND_ISSUER_ATTR}
+pattern CERT_FIND_SUBJECT_STR_A = CertFindType #{const CERT_FIND_SUBJECT_STR_A}
+pattern CERT_FIND_SUBJECT_STR_W = CertFindType #{const CERT_FIND_SUBJECT_STR_W}
+pattern CERT_FIND_SUBJECT_STR = CertFindType #{const CERT_FIND_SUBJECT_STR}
+pattern CERT_FIND_ISSUER_STR_A = CertFindType #{const CERT_FIND_ISSUER_STR_A}
+pattern CERT_FIND_ISSUER_STR_W = CertFindType #{const CERT_FIND_ISSUER_STR_W}
+pattern CERT_FIND_ISSUER_STR = CertFindType #{const CERT_FIND_ISSUER_STR}
+pattern CERT_FIND_KEY_SPEC = CertFindType #{const CERT_FIND_KEY_SPEC}
+pattern CERT_FIND_ENHKEY_USAGE = CertFindType #{const CERT_FIND_ENHKEY_USAGE}
+pattern CERT_FIND_CTL_USAGE = CertFindType #{const CERT_FIND_CTL_USAGE}
+pattern CERT_FIND_SUBJECT_CERT = CertFindType #{const CERT_FIND_SUBJECT_CERT}
+pattern CERT_FIND_ISSUER_OF = CertFindType #{const CERT_FIND_ISSUER_OF}
+pattern CERT_FIND_EXISTING = CertFindType #{const CERT_FIND_EXISTING}
+pattern CERT_FIND_CERT_ID = CertFindType #{const CERT_FIND_CERT_ID}
+pattern CERT_FIND_CROSS_CERT_DIST_POINTS = CertFindType #{const CERT_FIND_CROSS_CERT_DIST_POINTS}
+pattern CERT_FIND_PUBKEY_MD5_HASH = CertFindType #{const CERT_FIND_PUBKEY_MD5_HASH}
+pattern CERT_FIND_SUBJECT_INFO_ACCESS = CertFindType #{const CERT_FIND_SUBJECT_INFO_ACCESS}
+pattern CERT_FIND_HASH_STR = CertFindType #{const CERT_FIND_HASH_STR}
+pattern CERT_FIND_HAS_PRIVATE_KEY = CertFindType #{const CERT_FIND_HAS_PRIVATE_KEY}
+
+certFindTypeNames :: [(CertFindType, String)]
+certFindTypeNames =
+  [ (CERT_FIND_ANY, "CERT_FIND_ANY")
+  , (CERT_FIND_SHA1_HASH, "CERT_FIND_SHA1_HASH")
+  , (CERT_FIND_MD5_HASH, "CERT_FIND_MD5_HASH")
+  , (CERT_FIND_SIGNATURE_HASH, "CERT_FIND_SIGNATURE_HASH")
+  , (CERT_FIND_KEY_IDENTIFIER, "CERT_FIND_KEY_IDENTIFIER")
+  , (CERT_FIND_HASH, "CERT_FIND_HASH")
+  , (CERT_FIND_PROPERTY, "CERT_FIND_PROPERTY")
+  , (CERT_FIND_PUBLIC_KEY, "CERT_FIND_PUBLIC_KEY")
+  , (CERT_FIND_SUBJECT_NAME, "CERT_FIND_SUBJECT_NAME")
+  , (CERT_FIND_SUBJECT_ATTR, "CERT_FIND_SUBJECT_ATTR")
+  , (CERT_FIND_ISSUER_NAME, "CERT_FIND_ISSUER_NAME")
+  , (CERT_FIND_ISSUER_ATTR, "CERT_FIND_ISSUER_ATTR")
+  , (CERT_FIND_SUBJECT_STR_A, "CERT_FIND_SUBJECT_STR_A")
+  , (CERT_FIND_SUBJECT_STR_W, "CERT_FIND_SUBJECT_STR_W")
+  , (CERT_FIND_SUBJECT_STR, "CERT_FIND_SUBJECT_STR")
+  , (CERT_FIND_ISSUER_STR_A, "CERT_FIND_ISSUER_STR_A")
+  , (CERT_FIND_ISSUER_STR_W, "CERT_FIND_ISSUER_STR_W")
+  , (CERT_FIND_ISSUER_STR, "CERT_FIND_ISSUER_STR")
+  , (CERT_FIND_KEY_SPEC, "CERT_FIND_KEY_SPEC")
+  , (CERT_FIND_ENHKEY_USAGE, "CERT_FIND_ENHKEY_USAGE")
+  , (CERT_FIND_CTL_USAGE, "CERT_FIND_CTL_USAGE")
+  , (CERT_FIND_SUBJECT_CERT, "CERT_FIND_SUBJECT_CERT")
+  , (CERT_FIND_ISSUER_OF, "CERT_FIND_ISSUER_OF")
+  , (CERT_FIND_EXISTING, "CERT_FIND_EXISTING")
+  , (CERT_FIND_CERT_ID, "CERT_FIND_CERT_ID")
+  , (CERT_FIND_CROSS_CERT_DIST_POINTS, "CERT_FIND_CROSS_CERT_DIST_POINTS")
+  , (CERT_FIND_PUBKEY_MD5_HASH, "CERT_FIND_PUBKEY_MD5_HASH")
+  , (CERT_FIND_SUBJECT_INFO_ACCESS, "CERT_FIND_SUBJECT_INFO_ACCESS")
+  , (CERT_FIND_HASH_STR, "CERT_FIND_HASH_STR")
+  , (CERT_FIND_HAS_PRIVATE_KEY, "CERT_FIND_HAS_PRIVATE_KEY")
+  ]
+
+instance Show CertFindType where
+  show x = printf "CertFindType { %s }" (pickName certFindTypeNames unCertFindType x)
+
+-- PCCERT_CONTEXT WINAPI CertFindCertificateInStore(
+--   _In_       HCERTSTORE     hCertStore,
+--   _In_       DWORD          dwCertEncodingType,
+--   _In_       DWORD          dwFindFlags,
+--   _In_       DWORD          dwFindType,
+--   _In_ const void           *pvFindPara,
+--   _In_       PCCERT_CONTEXT pPrevCertContext
+-- );
+foreign import WINDOWS_CCONV "wincrypt.h CertFindCertificateInStore"
+  c_CertFindCertificateInStore
+    :: HCERTSTORE -- hCertStore
+    -> EncodingType -- dwCertEncodingType
+    -> DWORD -- dwFindFlags
+    -> CertFindType -- dwFindType
+    -> Ptr () -- pvFindPara
+    -> PCERT_CONTEXT -- pPrevCertContext
+    -> IO PCERT_CONTEXT

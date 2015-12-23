@@ -102,6 +102,7 @@ module System.Win32.Cryptography.Certificates
   , certDuplicateCertificateContext
   , CertInfo (..)
   , certContextGetInfo
+  , certFindBySHA1
   ) where
 
 import Control.Exception
@@ -329,3 +330,18 @@ certNameToStr name strType = if name == nullPtr then return T.empty else do
   if charsNeeded == 0 then return T.empty else allocaBytes ((fromIntegral charsNeeded) * sizeOf (undefined :: CWchar)) $ \psz -> do
     newLen <- c_CertNameToStr X509_ASN_ENCODING name strType psz charsNeeded
     T.fromPtr (castPtr psz) (fromIntegral newLen - 1)
+
+certFindBySHA1 :: HCERTSTORE -> B.ByteString -> ResourceT IO (Maybe (ReleaseKey, PCERT_CONTEXT))
+certFindBySHA1 store sha1 = liftBaseWith $ \runInBase ->
+  BU.unsafeUseAsCStringLen sha1 $ \(sha1Bytes, sha1Length) ->
+  let sha1Blob = CRYPTOAPI_BLOB
+        { blobPbData = castPtr sha1Bytes
+        , blobCbData = fromIntegral sha1Length
+        }
+  in with sha1Blob $ \pvFindPara -> runInBase . resourceMask $ \_ -> do
+    res <- liftIO $ c_CertFindCertificateInStore store X509_ASN_ENCODING 0 CERT_FIND_SHA1_HASH (castPtr pvFindPara) nullPtr
+    if res == nullPtr
+      then return Nothing
+      else do
+        releaseKey <- register $ certFreeCertificateContext res
+        return $ Just (releaseKey, res)
