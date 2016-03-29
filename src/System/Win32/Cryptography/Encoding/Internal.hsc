@@ -60,7 +60,7 @@ instance Show CryptStringFlags where
 --   _Out_   DWORD   *pdwSkip,
 --   _Out_   DWORD   *pdwFlags
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptStringToBinaryW"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptStringToBinaryW"
   c_CryptStringToBinary
     :: LPWSTR -- pszString
     -> DWORD -- cchString
@@ -117,7 +117,7 @@ type PCRYPT_DECODE_PARA = Ptr CRYPT_DECODE_PARA
 --   _Out_         void               *pvStructInfo,
 --   _Inout_       DWORD              *pcbStructInfo
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptDecodeObjectEx"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptDecodeObjectEx"
   c_CryptDecodeObjectEx
     :: EncodingType -- dwCertEncodingType
     -> LPSTR -- lpszStructType

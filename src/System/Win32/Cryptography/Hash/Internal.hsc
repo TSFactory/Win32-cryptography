@@ -13,7 +13,7 @@ import System.Win32.Types
 --   _In_  DWORD      dwFlags,
 --   _Out_ HCRYPTHASH *phHash
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptCreateHash"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptCreateHash"
   c_CryptCreateHash
     :: HCRYPTPROV -- hProv
     -> ALG_ID -- Algid
@@ -25,7 +25,7 @@ foreign import WINDOWS_CCONV "wincrypt.h CryptCreateHash"
 -- BOOL WINAPI CryptDestroyHash(
 --   _In_ HCRYPTHASH hHash
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptDestroyHash"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptDestroyHash"
   c_CryptDestroyHash
     :: HCRYPTHASH -- hHash
     -> IO BOOL
@@ -41,7 +41,7 @@ type HCRYPTPROV_LEGACY = HANDLE
 --   _Out_         BYTE              *pbComputedHash,
 --   _Inout_       DWORD             *pcbComputedHash
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptHashCertificate"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptHashCertificate"
   c_CryptHashCertificate
     :: HCRYPTPROV_LEGACY -- hCryptProv
     -> ALG_ID -- Algid

@@ -226,7 +226,7 @@ type PCERT_EXTENSION = Ptr CERT_EXTENSION
 --   _In_ const BYTE  *pbCertEncoded,
 --   _In_       DWORD cbCertEncoded
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertCreateCertificateContext"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertCreateCertificateContext"
   c_CertCreateCertificateContext
     :: EncodingType -- dwCertEncodingType
     -> Ptr CChar -- pbCertEncoded
@@ -236,7 +236,7 @@ foreign import WINDOWS_CCONV "wincrypt.h CertCreateCertificateContext"
 -- BOOL WINAPI CertFreeCertificateContext(
 --   _In_ PCCERT_CONTEXT pCertContext
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertFreeCertificateContext"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertFreeCertificateContext"
   c_CertFreeCertificateContext
     :: PCERT_CONTEXT
     -> IO BOOL
@@ -406,7 +406,7 @@ instance Show CertPropId where
 --   _In_       DWORD          dwFlags,
 --   _In_ const void           *pvData
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertSetCertificateContextProperty"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertSetCertificateContextProperty"
   c_CertSetCertificateContextProperty
     :: PCERT_CONTEXT -- pCertContext
     -> CertPropId -- dwPropId
@@ -420,7 +420,7 @@ foreign import WINDOWS_CCONV "wincrypt.h CertSetCertificateContextProperty"
 --   _Out_   void           *pvData,
 --   _Inout_ DWORD          *pcbData
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertGetCertificateContextProperty"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertGetCertificateContextProperty"
   c_CertGetCertificateContextProperty
     :: PCERT_CONTEXT -- pCertContext
     -> CertPropId -- dwPropId
@@ -616,7 +616,7 @@ pattern MS_ENH_RSA_AES_PROV_XP = #{const_str MS_ENH_RSA_AES_PROV_XP}
 --   _In_  DWORD      dwProvType,
 --   _In_  DWORD      dwFlags
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptAcquireContextW"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptAcquireContextW"
   c_CryptAcquireContext
     :: Ptr HCRYPTPROV -- phProv
     -> LPWSTR -- pszContainer
@@ -629,7 +629,7 @@ foreign import WINDOWS_CCONV "wincrypt.h CryptAcquireContextW"
 --  _In_ HCRYPTPROV hProv,
 --  _In_ DWORD      dwFlags
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptReleaseContext"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptReleaseContext"
   c_CryptReleaseContext
     :: HCRYPTPROV -- hProv
     -> DWORD -- dwFlags
@@ -734,7 +734,7 @@ newtype CryptImportKeyFlags = CryptImportKeyFlags { unCryptImportKeyFlags :: DWO
 --   _In_  DWORD      dwFlags,
 --   _Out_ HCRYPTKEY  *phKey
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptImportKey"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptImportKey"
   c_CryptImportKey
     :: HCRYPTPROV -- hProv
     -> Ptr () -- pbData
@@ -747,7 +747,7 @@ foreign import WINDOWS_CCONV "wincrypt.h CryptImportKey"
 -- BOOL WINAPI CryptDestroyKey(
 --   _In_ HCRYPTKEY hKey
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CryptDestroyKey"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CryptDestroyKey"
   c_CryptDestroyKey
     :: HCRYPTKEY
     -> IO BOOL
@@ -862,7 +862,7 @@ instance Show CertOpenStoreFlags where
 --   _In_       DWORD             dwFlags,
 --   _In_ const void              *pvPara
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertOpenStore"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertOpenStore"
   c_CertOpenStore
     :: Ptr CChar
     -> EncodingType
@@ -890,7 +890,7 @@ instance Show CloseStoreFlags where
 --   _In_ HCERTSTORE hCertStore,
 --   _In_ DWORD      dwFlags
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertCloseStore"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertCloseStore"
   c_CertCloseStore
     :: HCERTSTORE
     -> CloseStoreFlags
@@ -900,7 +900,7 @@ foreign import WINDOWS_CCONV "wincrypt.h CertCloseStore"
 --   _In_ HCERTSTORE     hCertStore,
 --   _In_ PCCERT_CONTEXT pPrevCertContext
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertEnumCertificatesInStore"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertEnumCertificatesInStore"
   c_CertEnumCertificatesInStore
     :: HCERTSTORE
     -> PCERT_CONTEXT
@@ -909,7 +909,7 @@ foreign import WINDOWS_CCONV "wincrypt.h CertEnumCertificatesInStore"
 -- PCCERT_CONTEXT WINAPI CertDuplicateCertificateContext(
 --   _In_ PCCERT_CONTEXT pCertContext
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertDuplicateCertificateContext"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertDuplicateCertificateContext"
   c_CertDuplicateCertificateContext
     :: PCERT_CONTEXT
     -> IO PCERT_CONTEXT
@@ -964,7 +964,7 @@ instance Show StrType where
 --   _Out_ LPTSTR          psz,
 --   _In_  DWORD           csz
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertNameToStrW"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertNameToStrW"
   c_CertNameToStr
     :: EncodingType
     -> PCERT_NAME_BLOB
@@ -1052,7 +1052,7 @@ instance Show CertFindType where
 --   _In_ const void           *pvFindPara,
 --   _In_       PCCERT_CONTEXT pPrevCertContext
 -- );
-foreign import WINDOWS_CCONV "wincrypt.h CertFindCertificateInStore"
+foreign import WINDOWS_CCONV unsafe "wincrypt.h CertFindCertificateInStore"
   c_CertFindCertificateInStore
     :: HCERTSTORE -- hCertStore
     -> EncodingType -- dwCertEncodingType
