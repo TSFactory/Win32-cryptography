@@ -338,7 +338,7 @@ certFindBySHA1 store sha1 = liftBaseWith $ \runInBase ->
         { blobPbData = castPtr sha1Bytes
         , blobCbData = fromIntegral sha1Length
         }
-  in with sha1Blob $ \pvFindPara -> runInBase . resourceMask $ \_ -> do
+  in with sha1Blob $ \pvFindPara -> runInBase $ resourceMask $ \_ -> do
     res <- liftIO $ c_CertFindCertificateInStore store X509_ASN_ENCODING 0 CERT_FIND_SHA1_HASH (castPtr pvFindPara) nullPtr
     if res == nullPtr
       then return Nothing
