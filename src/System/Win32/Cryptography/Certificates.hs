@@ -103,6 +103,8 @@ module System.Win32.Cryptography.Certificates
   , CertInfo (..)
   , certContextGetInfo
   , certFindBySHA1
+  , CertificateFindType (..)
+  , certFindCertificate
   ) where
 
 import Control.Exception
@@ -118,6 +120,7 @@ import GHC.Ptr
 import GHC.Types
 import System.Win32.Cryptography.Certificates.Internal
 import System.Win32.Cryptography.Helpers
+import System.Win32.Cryptography.Hash (cryptHashCertificate)
 import System.Win32.Cryptography.Types
 import System.Win32.Error.Foreign
 import qualified Crypto.PubKey.RSA as RSA
@@ -309,6 +312,7 @@ certDuplicateCertificateContext = failIfNull "CertDuplicateCertificateContext" .
 data CertInfo = CertInfo
   { certInfoIssuer  :: T.Text
   , certInfoSubject :: T.Text
+  , certThumbprint  :: B.ByteString
   } deriving (Show)
 
 certContextGetInfo :: PCERT_CONTEXT -> IO (Maybe CertInfo)
@@ -319,9 +323,11 @@ certContextGetInfo pCtx = if pCtx == nullPtr then return Nothing else do
         certSubjectPtr = certInfoSubjectPtr $ pCertInfo ctx
     certIssuer <- certNameToStr certIssuerPtr CERT_SIMPLE_NAME_STR
     certSubject <- certNameToStr certSubjectPtr CERT_SIMPLE_NAME_STR
+    certSha1 <- cryptHashCertificate CALG_SHA1 pCtx
     return CertInfo
       { certInfoIssuer = certIssuer
       , certInfoSubject = certSubject
+      , certThumbprint = certSha1
       }
 
 certNameToStr :: PCERT_NAME_BLOB -> StrType -> IO T.Text
@@ -331,17 +337,45 @@ certNameToStr name strType = if name == nullPtr then return T.empty else do
     newLen <- c_CertNameToStr X509_ASN_ENCODING name strType psz charsNeeded
     T.fromPtr (castPtr psz) (fromIntegral newLen - 1)
 
+certFindInStore :: HCERTSTORE -> CertFindType -> Ptr () -> PCERT_CONTEXT -> ResourceT IO (Maybe (ReleaseKey, PCERT_CONTEXT))
+certFindInStore store findType findPara findPrevContext = do
+  res <- liftIO $ c_CertFindCertificateInStore store X509_ASN_ENCODING 0 findType findPara findPrevContext
+  if res == nullPtr
+    then return Nothing
+    else do
+      releaseKey <- register $ certFreeCertificateContext res
+      return $ Just (releaseKey, res)
+
+data CertificateFindType
+  = CertFindAny
+  | CertFindBySHA1 B.ByteString
+  | CertFindHasPrivateKey
+  | CertFindBySubj T.Text
+
+certFindCertificate :: HCERTSTORE -> CertificateFindType -> ResourceT IO (Maybe (ReleaseKey, PCERT_CONTEXT))
+certFindCertificate store findtype = liftBaseWith $ \runInBase -> do
+  let find ctype cparam =
+        runInBase $ resourceMask $ \_ ->
+          certFindInStore store ctype (castPtr cparam) nullPtr
+
+  case findtype of
+    CertFindAny ->
+      find CERT_FIND_ANY nullPtr
+
+    CertFindBySHA1 sha1 ->
+      BU.unsafeUseAsCStringLen sha1 $ \(sha1Bytes, sha1Length) ->
+        let sha1Blob = CRYPTOAPI_BLOB
+              { blobPbData = castPtr sha1Bytes
+              , blobCbData = fromIntegral sha1Length
+              }
+        in with sha1Blob $ \pvFindPara ->
+          find CERT_FIND_SHA1_HASH pvFindPara
+
+    CertFindHasPrivateKey ->
+      find CERT_FIND_HAS_PRIVATE_KEY nullPtr
+
+    CertFindBySubj subj ->
+      useAsPtr0 subj $ \szSubj -> find CERT_FIND_SUBJECT_STR szSubj
+
 certFindBySHA1 :: HCERTSTORE -> B.ByteString -> ResourceT IO (Maybe (ReleaseKey, PCERT_CONTEXT))
-certFindBySHA1 store sha1 = liftBaseWith $ \runInBase ->
-  BU.unsafeUseAsCStringLen sha1 $ \(sha1Bytes, sha1Length) ->
-  let sha1Blob = CRYPTOAPI_BLOB
-        { blobPbData = castPtr sha1Bytes
-        , blobCbData = fromIntegral sha1Length
-        }
-  in with sha1Blob $ \pvFindPara -> runInBase $ resourceMask $ \_ -> do
-    res <- liftIO $ c_CertFindCertificateInStore store X509_ASN_ENCODING 0 CERT_FIND_SHA1_HASH (castPtr pvFindPara) nullPtr
-    if res == nullPtr
-      then return Nothing
-      else do
-        releaseKey <- register $ certFreeCertificateContext res
-        return $ Just (releaseKey, res)
+certFindBySHA1 store = certFindCertificate store . CertFindBySHA1
