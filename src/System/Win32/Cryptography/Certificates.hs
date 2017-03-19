@@ -101,6 +101,7 @@ module System.Win32.Cryptography.Certificates
   , getAllCertificatesInStore
   , certDuplicateCertificateContext
   , CertInfo (..)
+  , Thumbprint (..)
   , certContextGetInfo
   , certFindBySHA1
   , CertificateFindType (..)
@@ -127,6 +128,8 @@ import qualified Crypto.PubKey.RSA as RSA
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Unsafe as BU
+import qualified Data.ByteString.Char8 as C8
+import qualified Data.ByteString.Base16 as B16
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Foreign as T
@@ -307,12 +310,19 @@ getAllCertificatesInStore store = do
 certDuplicateCertificateContext :: PCERT_CONTEXT -> IO PCERT_CONTEXT
 certDuplicateCertificateContext = failIfNull "CertDuplicateCertificateContext" . c_CertDuplicateCertificateContext
 
+newtype Thumbprint = Thumbprint
+  { thumbprintBytes :: B.ByteString
+  } deriving (Eq, Ord)
+
+instance Show Thumbprint where
+  show = C8.unpack . B16.encode . thumbprintBytes
+
 -- | There is actually much more information in the underlying Windows API CERT_INFO structure.
 -- That info just is not present in this structure. Feel free to add it if you have a need.
 data CertInfo = CertInfo
   { certInfoIssuer  :: T.Text
   , certInfoSubject :: T.Text
-  , certThumbprint  :: B.ByteString
+  , certThumbprint  :: Thumbprint
   } deriving (Show)
 
 certContextGetInfo :: PCERT_CONTEXT -> IO (Maybe CertInfo)
@@ -327,7 +337,7 @@ certContextGetInfo pCtx = if pCtx == nullPtr then return Nothing else do
     return CertInfo
       { certInfoIssuer = certIssuer
       , certInfoSubject = certSubject
-      , certThumbprint = certSha1
+      , certThumbprint = Thumbprint certSha1
       }
 
 certNameToStr :: PCERT_NAME_BLOB -> StrType -> IO T.Text
