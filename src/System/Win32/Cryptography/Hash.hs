@@ -5,6 +5,7 @@ module System.Win32.Cryptography.Hash
   ) where
 
 import Control.Monad
+import Control.Monad.IO.Unlift (withRunInIO)
 import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
 import Data.Maybe
@@ -18,8 +19,11 @@ import System.Win32.Types hiding (failIfFalse_)
 import qualified Data.ByteString as B
 
 cryptCreateHash :: HCRYPTPROV -> ALG_ID -> Maybe HCRYPTKEY -> ResourceT IO (ReleaseKey, HCRYPTHASH)
-cryptCreateHash cryptProv alg maybeKey = liftBaseWith $ \runInBase ->
-  alloca $ \(pBuffer :: Ptr HCRYPTHASH) -> runInBase $
+cryptCreateHash cryptProv alg maybeKey = withRunInIO $ \runInIo ->
+  -- alloca :: (Ptr HCRYPTHASH -> b1 (StM (ResourceT IO) (ReleaseKey, HCRYPTHASH)))
+  --   -> b1 (ReleaseKey, HCRYPTHASH)
+  -- runInBase :: ? -> IO (ReleaseKey, HCRYPTHASH)
+  alloca $ \(pBuffer :: Ptr HCRYPTHASH) -> runInIo $
     allocate
       (do failIfFalse_ "CryptCreateHash" $ c_CryptCreateHash cryptProv alg (fromMaybe nullPtr maybeKey) 0 pBuffer
           peek pBuffer)

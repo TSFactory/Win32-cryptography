@@ -111,6 +111,7 @@ module System.Win32.Cryptography.Certificates
 import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
+import Control.Monad.IO.Unlift (withRunInIO)
 import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
 import Data.IORef
@@ -260,8 +261,8 @@ withStoreProviderPtr sp act = case sp of
   StoreProviderCustom custom -> BU.unsafeUseAsCString custom act
 
 certOpenStore :: StoreProvider -> EncodingType -> CertOpenStoreFlags -> Ptr () -> ResourceT IO (ReleaseKey, HCERTSTORE)
-certOpenStore prov encType cosFlags pvPara = liftBaseWith $ \runInBase ->
-  withStoreProviderPtr prov $ \lpszStoreProvider -> runInBase $
+certOpenStore prov encType cosFlags pvPara = withRunInIO $ \runInIo ->
+  withStoreProviderPtr prov $ \lpszStoreProvider -> runInIo $
     allocate
       (failIfNull "CertOpenStore" $ c_CertOpenStore lpszStoreProvider encType nullPtr cosFlags pvPara)
       (\s -> certCloseStore s zeroBits)
@@ -300,12 +301,11 @@ certFreeCertificateContext = void . c_CertFreeCertificateContext
 getAllCertificatesInStore :: HCERTSTORE -> ResourceT IO [(ReleaseKey, PCERT_CONTEXT)]
 getAllCertificatesInStore store = do
   resultRef <- liftIO $ newIORef []
-  liftBaseWith $ \runInBase -> unsafeEnumCertificatesInStore store $ \cert -> do
-    dup <- runInBase $ allocate (certDuplicateCertificateContext cert) certFreeCertificateContext
+  withRunInIO $ \runInIo -> unsafeEnumCertificatesInStore store $ \cert -> do
+    dup <- runInIo $ allocate (certDuplicateCertificateContext cert) certFreeCertificateContext
     modifyIORef resultRef $ \x -> x `mappend` [dup]
     return True
-  res <- liftIO $ readIORef resultRef
-  mapM restoreM res
+  liftIO $ readIORef resultRef
 
 certDuplicateCertificateContext :: PCERT_CONTEXT -> IO PCERT_CONTEXT
 certDuplicateCertificateContext = failIfNull "CertDuplicateCertificateContext" . c_CertDuplicateCertificateContext
@@ -363,9 +363,9 @@ data CertificateFindType
   | CertFindBySubj T.Text
 
 certFindCertificate :: HCERTSTORE -> CertificateFindType -> ResourceT IO (Maybe (ReleaseKey, PCERT_CONTEXT))
-certFindCertificate store findtype = liftBaseWith $ \runInBase -> do
+certFindCertificate store findtype = withRunInIO $ \runInIo -> do
   let find ctype cparam =
-        runInBase $ resourceMask $ \_ ->
+        runInIo $ resourceMask $ \_ ->
           certFindInStore store ctype (castPtr cparam) nullPtr
 
   case findtype of
